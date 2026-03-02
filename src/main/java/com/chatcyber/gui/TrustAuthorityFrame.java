@@ -1,24 +1,46 @@
 package com.chatcyber.gui;
 
-import com.chatcyber.crypto.TrustAuthorityServer;
-
-import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
+import com.chatcyber.crypto.TrustAuthorityServer;
 
 /**
- * Fenêtre de gestion de l'Autorité de Confiance (Trust Authority).
- *
- * Permet de :
- *   - Démarrer/arrêter le serveur AC
- *   - Visualiser les logs du serveur (connexions, extraction de clés)
- *   - Voir l'état du système IBE
- *
- * Cette fenêtre peut être lancée indépendamment ou depuis le panneau de configuration.
+ * Fenetre de gestion de l'Autorite de Confiance (Trust Authority).
+ * Theme sombre professionnel avec terminal de logs.
  */
 public class TrustAuthorityFrame extends JFrame {
+
+    private static final Color DARK_BG      = new Color(24, 24, 27);
+    private static final Color DARK_CARD    = new Color(39, 39, 42);
+    private static final Color DARK_BORDER  = new Color(63, 63, 70);
+    private static final Color DARK_TEXT    = new Color(228, 228, 231);
+    private static final Color DARK_MUTED   = new Color(161, 161, 170);
+    private static final Color GREEN_TERM   = new Color(52, 211, 153);
+    private static final Color GREEN_BRIGHT = new Color(16, 185, 129);
+    private static final Color RED_BRIGHT   = new Color(248, 113, 113);
+    private static final Color BLUE_ACCENT  = new Color(96, 165, 250);
 
     private final int port;
     private TrustAuthorityServer server;
@@ -28,18 +50,20 @@ public class TrustAuthorityFrame extends JFrame {
     private JButton btnStop;
     private JLabel lblStatus;
     private JTextField tfPort;
+    private JLabel lblConnections;
+    private int connectionCount;
 
     public TrustAuthorityFrame(int port) {
-        super("Autorité de Confiance — Serveur IBE");
+        super("Autorite de Confiance - Serveur IBE Boneh-Franklin");
         this.port = port;
-        setSize(650, 500);
-        setMinimumSize(new Dimension(500, 350));
+        this.connectionCount = 0;
+        setSize(750, 550);
+        setMinimumSize(new Dimension(550, 400));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         initComponents();
 
-        // Arrêter le serveur à la fermeture de la fenêtre
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -49,127 +73,236 @@ public class TrustAuthorityFrame extends JFrame {
     }
 
     private void initComponents() {
-        setLayout(new BorderLayout(10, 10));
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        getContentPane().setBackground(DARK_BG);
+        setLayout(new BorderLayout(0, 0));
 
-        // ====== Panneau de contrôle ======
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        controlPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Contrôle du serveur ",
-                TitledBorder.LEFT, TitledBorder.TOP));
+        // ── Header ──
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(new Color(30, 30, 35));
+        header.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, DARK_BORDER),
+                BorderFactory.createEmptyBorder(16, 24, 16, 24)
+        ));
 
-        controlPanel.add(new JLabel("Port :"));
+        JLabel titleLabel = new JLabel("Autorite de Confiance");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        titleLabel.setForeground(DARK_TEXT);
+
+        JLabel subLabel = new JLabel("   Serveur IBE | Boneh-Franklin | Courbe Type A");
+        subLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subLabel.setForeground(DARK_MUTED);
+
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        titlePanel.setOpaque(false);
+        titlePanel.add(titleLabel);
+        titlePanel.add(subLabel);
+        header.add(titlePanel, BorderLayout.WEST);
+
+        // Status badge
+        lblStatus = new JLabel("  Arrete  ");
+        lblStatus.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblStatus.setForeground(DARK_MUTED);
+        lblStatus.setOpaque(true);
+        lblStatus.setBackground(DARK_CARD);
+        lblStatus.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(DARK_BORDER, 1),
+                BorderFactory.createEmptyBorder(4, 12, 4, 12)
+        ));
+        header.add(lblStatus, BorderLayout.EAST);
+
+        add(header, BorderLayout.NORTH);
+
+        // ── Controls ──
+        JPanel controlBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 8));
+        controlBar.setBackground(DARK_CARD);
+        controlBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, DARK_BORDER),
+                BorderFactory.createEmptyBorder(4, 16, 4, 16)
+        ));
+
+        JLabel portLabel = new JLabel("Port :");
+        portLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        portLabel.setForeground(DARK_TEXT);
+        controlBar.add(portLabel);
+
         tfPort = new JTextField(String.valueOf(port), 6);
-        controlPanel.add(tfPort);
+        tfPort.setFont(new Font("Consolas", Font.PLAIN, 13));
+        tfPort.setBackground(DARK_BG);
+        tfPort.setForeground(DARK_TEXT);
+        tfPort.setCaretColor(DARK_TEXT);
+        tfPort.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(DARK_BORDER, 1),
+                BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        ));
+        controlBar.add(tfPort);
 
-        btnStart = new JButton("▶ Démarrer");
-        btnStart.setForeground(new Color(0, 128, 0));
+        controlBar.add(Box.createHorizontalStrut(8));
+
+        btnStart = createDarkButton("Demarrer", GREEN_BRIGHT);
         btnStart.addActionListener(e -> startServer());
-        controlPanel.add(btnStart);
+        controlBar.add(btnStart);
 
-        btnStop = new JButton("⏹ Arrêter");
-        btnStop.setForeground(Color.RED);
+        btnStop = createDarkButton("Arreter", RED_BRIGHT);
         btnStop.setEnabled(false);
         btnStop.addActionListener(e -> stopServer());
-        controlPanel.add(btnStop);
+        controlBar.add(btnStop);
 
-        lblStatus = new JLabel("  ⚪ Arrêté");
-        lblStatus.setFont(lblStatus.getFont().deriveFont(Font.BOLD));
-        controlPanel.add(lblStatus);
+        controlBar.add(Box.createHorizontalStrut(20));
 
-        mainPanel.add(controlPanel, BorderLayout.NORTH);
+        lblConnections = new JLabel("Connexions : 0");
+        lblConnections.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblConnections.setForeground(DARK_MUTED);
+        controlBar.add(lblConnections);
 
-        // ====== Logs ======
+        add(controlBar, BorderLayout.BEFORE_FIRST_LINE);
+        // Since NORTH is taken, use a wrapper
+        JPanel topWrapper = new JPanel(new BorderLayout());
+        topWrapper.setBackground(DARK_BG);
+        topWrapper.add(header, BorderLayout.NORTH);
+        topWrapper.add(controlBar, BorderLayout.SOUTH);
+        add(topWrapper, BorderLayout.NORTH);
+
+        // ── Terminal ──
         taLog = new JTextArea();
         taLog.setEditable(false);
-        taLog.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        taLog.setFont(new Font("Consolas", Font.PLAIN, 12));
         taLog.setLineWrap(true);
         taLog.setWrapStyleWord(true);
-        taLog.setBackground(new Color(30, 30, 30));
-        taLog.setForeground(new Color(0, 255, 100));
-        taLog.setCaretColor(Color.WHITE);
-        taLog.setMargin(new Insets(8, 8, 8, 8));
+        taLog.setBackground(DARK_BG);
+        taLog.setForeground(GREEN_TERM);
+        taLog.setCaretColor(GREEN_TERM);
+        taLog.setMargin(new Insets(12, 16, 12, 16));
+        taLog.setSelectionColor(new Color(55, 65, 81));
+        taLog.setSelectedTextColor(GREEN_BRIGHT);
 
         JScrollPane logScroll = new JScrollPane(taLog);
-        logScroll.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Journal du serveur ",
-                TitledBorder.LEFT, TitledBorder.TOP));
-        mainPanel.add(logScroll, BorderLayout.CENTER);
+        logScroll.setBorder(BorderFactory.createEmptyBorder());
+        logScroll.getViewport().setBackground(DARK_BG);
+        logScroll.getVerticalScrollBar().setBackground(DARK_CARD);
 
-        // ====== Info ======
-        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        infoPanel.add(new JLabel(
-                "<html><i>L'Autorité de Confiance gère les paramètres IBE et génère les clés privées des utilisateurs.</i></html>"));
-        mainPanel.add(infoPanel, BorderLayout.SOUTH);
+        add(logScroll, BorderLayout.CENTER);
 
-        add(mainPanel);
+        // ── Footer ──
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setBackground(DARK_CARD);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, DARK_BORDER),
+                BorderFactory.createEmptyBorder(6, 16, 6, 16)
+        ));
+
+        JLabel footerText = new JLabel(
+                "L'AC genere les parametres IBE et distribue les cles privees aux utilisateurs.");
+        footerText.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        footerText.setForeground(DARK_MUTED);
+        footer.add(footerText, BorderLayout.WEST);
+
+        add(footer, BorderLayout.SOUTH);
+
+        // Welcome message
+        appendLog("  +-------------------------------------------+\n");
+        appendLog("  |  ChatCyber - Autorite de Confiance        |\n");
+        appendLog("  |  Schema IBE de Boneh-Franklin             |\n");
+        appendLog("  |  Courbe bilineaire Type A (r=160, q=512)  |\n");
+        appendLog("  +-------------------------------------------+\n\n");
+        appendLog("  Cliquez sur \"Demarrer\" pour initialiser le serveur.\n\n");
     }
 
-    /**
-     * Démarre le serveur de l'Autorité de Confiance.
-     */
+    private JButton createDarkButton(String text, Color accent) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setForeground(accent);
+        btn.setBackground(DARK_BG);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(accent.darker(), 1),
+                BorderFactory.createEmptyBorder(6, 16, 6, 16)
+        ));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (btn.isEnabled()) {
+                    btn.setBackground(accent.darker().darker());
+                }
+            }
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                btn.setBackground(DARK_BG);
+            }
+        });
+        return btn;
+    }
+
     private void startServer() {
         int serverPort;
         try {
             serverPort = Integer.parseInt(tfPort.getText().trim());
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Port invalide.", "Erreur", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Port invalide.", "Erreur", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         btnStart.setEnabled(false);
         tfPort.setEnabled(false);
-        appendLog("Démarrage du serveur sur le port " + serverPort + "...\n");
+        connectionCount = 0;
+
+        appendLog(timestamp() + " Demarrage du serveur sur le port " + serverPort + "...\n");
 
         new Thread(() -> {
             try {
                 server = new TrustAuthorityServer(serverPort);
-                server.setMessageListener(msg ->
-                        SwingUtilities.invokeLater(() -> {
-                            appendLog(msg + "\n");
-                        })
-                );
+                server.setMessageListener(msg -> SwingUtilities.invokeLater(() -> {
+                    appendLog(timestamp() + " " + msg + "\n");
+                    if (msg.contains("Connexion entrante")) {
+                        connectionCount++;
+                        lblConnections.setText("Connexions : " + connectionCount);
+                    }
+                }));
                 server.start();
 
                 SwingUtilities.invokeLater(() -> {
                     btnStop.setEnabled(true);
-                    lblStatus.setText("  🟢 En marche (port " + serverPort + ")");
-                    lblStatus.setForeground(new Color(0, 128, 0));
+                    lblStatus.setText("  En marche (:" + serverPort + ")  ");
+                    lblStatus.setForeground(GREEN_BRIGHT);
+                    lblStatus.setBackground(new Color(6, 78, 59));
+                    lblStatus.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(GREEN_BRIGHT.darker(), 1),
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
+                    ));
                 });
-
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
-                    appendLog("ERREUR : " + ex.getMessage() + "\n");
+                    appendLog(timestamp() + " ERREUR : " + ex.getMessage() + "\n");
                     btnStart.setEnabled(true);
                     tfPort.setEnabled(true);
-                    lblStatus.setText("  🔴 Erreur");
-                    lblStatus.setForeground(Color.RED);
+                    lblStatus.setText("  Erreur  ");
+                    lblStatus.setForeground(RED_BRIGHT);
+                    lblStatus.setBackground(new Color(127, 29, 29));
                 });
             }
         }).start();
     }
 
-    /**
-     * Arrête le serveur.
-     */
     private void stopServer() {
         if (server != null && server.isRunning()) {
             server.stop();
-            appendLog("Serveur arrêté.\n");
+            appendLog(timestamp() + " Serveur arrete.\n");
         }
 
         btnStart.setEnabled(true);
         btnStop.setEnabled(false);
         tfPort.setEnabled(true);
-        lblStatus.setText("  ⚪ Arrêté");
-        lblStatus.setForeground(Color.GRAY);
+        lblStatus.setText("  Arrete  ");
+        lblStatus.setForeground(DARK_MUTED);
+        lblStatus.setBackground(DARK_CARD);
+        lblStatus.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(DARK_BORDER, 1),
+                BorderFactory.createEmptyBorder(4, 12, 4, 12)
+        ));
     }
 
-    /**
-     * Ajoute un message au journal.
-     */
+    private String timestamp() {
+        return "[" + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + "]";
+    }
+
     private void appendLog(String text) {
         taLog.append(text);
         taLog.setCaretPosition(taLog.getDocument().getLength());

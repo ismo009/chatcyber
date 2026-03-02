@@ -1,23 +1,28 @@
 package com.chatcyber.gui;
 
-import com.chatcyber.crypto.SystemParameters;
-import com.chatcyber.mail.MailConfig;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.swing.BorderFactory;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.SwingUtilities;
+
+import com.chatcyber.crypto.SystemParameters;
+import com.chatcyber.mail.MailConfig;
+
 /**
- * Fenêtre principale de l'application client mail sécurisé.
- *
- * Organisation en onglets :
- *   1. Configuration  — Paramètres email (SMTP/IMAP) et Autorité de Confiance
- *   2. Sécurité IBE   — Gestion des clés IBE (connexion AC, extraction de clé)
- *   3. Composer        — Rédaction et envoi de mails avec pièces jointes chiffrées
- *   4. Boîte de réception — Consultation des mails reçus et déchiffrement
+ * Fenetre principale de l'application client mail securise.
  */
 public class MainFrame extends JFrame {
 
@@ -26,71 +31,121 @@ public class MainFrame extends JFrame {
     private ComposePanel composePanel;
     private InboxPanel inboxPanel;
 
-    // --- État partagé ---
     private MailConfig mailConfig;
     private SystemParameters systemParams;
     private byte[] privateKey;
 
-    /** Barre de statut en bas de la fenêtre */
     private JLabel statusBar;
+    private JLabel ibeBadge;
 
     public MainFrame() {
-        super("ChatCyber — Messagerie Sécurisée IBE");
+        super("ChatCyber - Messagerie Securisee IBE");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(900, 700);
-        setMinimumSize(new Dimension(700, 500));
+        setSize(1050, 750);
+        setMinimumSize(new Dimension(800, 550));
         setLocationRelativeTo(null);
 
-        // Charger la configuration sauvegardée
         loadConfiguration();
-
         initComponents();
-
-        // Icône de l'application
-        try {
-            setIconImage(new ImageIcon(getClass().getResource("/icon.png")).getImage());
-        } catch (Exception ignored) {
-            // Pas d'icône disponible, ce n'est pas critique
-        }
     }
 
     private void initComponents() {
         setLayout(new BorderLayout());
+        getContentPane().setBackground(UITheme.BG_MAIN);
 
-        // --- Barre de statut ---
-        statusBar = new JLabel("  Prêt");
-        statusBar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY),
-                BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        // ── En-tete ──
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(UITheme.PRIMARY);
+        header.setBorder(BorderFactory.createEmptyBorder(14, 24, 14, 24));
+
+        JLabel titleLabel = new JLabel("ChatCyber");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setForeground(Color.WHITE);
+
+        JLabel subtitleLabel = new JLabel("    Messagerie Securisee  |  Chiffrement IBE Boneh-Franklin");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        subtitleLabel.setForeground(new Color(191, 219, 254));
+
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        titlePanel.setOpaque(false);
+        titlePanel.add(titleLabel);
+        titlePanel.add(subtitleLabel);
+        header.add(titlePanel, BorderLayout.WEST);
+
+        // Badge IBE
+        JPanel ibePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        ibePanel.setOpaque(false);
+        ibeBadge = new JLabel();
+        updateIBEBadge();
+        ibePanel.add(ibeBadge);
+        header.add(ibePanel, BorderLayout.EAST);
+
+        add(header, BorderLayout.NORTH);
+
+        // ── Barre de statut ──
+        JPanel statusPanel = new JPanel(new BorderLayout());
+        statusPanel.setBackground(UITheme.BG_CARD);
+        statusPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)
         ));
-        add(statusBar, BorderLayout.SOUTH);
 
-        // --- Panneau à onglets ---
-        tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-        tabbedPane.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        statusBar = new JLabel("Pret");
+        statusBar.setFont(UITheme.FONT_SMALL);
+        statusBar.setForeground(UITheme.TEXT_SECONDARY);
+
+        JLabel version = new JLabel("ChatCyber v1.0   ");
+        version.setFont(UITheme.FONT_SMALL);
+        version.setForeground(UITheme.TEXT_MUTED);
+
+        statusPanel.add(statusBar, BorderLayout.WEST);
+        statusPanel.add(version, BorderLayout.EAST);
+        add(statusPanel, BorderLayout.SOUTH);
+
+        // ── Onglets ──
+        tabbedPane = new JTabbedPane(JTabbedPane.LEFT);
+        tabbedPane.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabbedPane.setBackground(UITheme.BG_SIDEBAR);
+        tabbedPane.setBorder(null);
 
         configPanel = new ConfigPanel(this);
         composePanel = new ComposePanel(this);
         inboxPanel = new InboxPanel(this);
 
-        tabbedPane.addTab("⚙ Configuration", configPanel);
-        tabbedPane.addTab("✉ Composer", composePanel);
-        tabbedPane.addTab("📥 Boîte de réception", inboxPanel);
+        tabbedPane.addTab("  Configuration  ", wrapTab(configPanel));
+        tabbedPane.addTab("  Composer       ", wrapTab(composePanel));
+        tabbedPane.addTab("  Reception      ", wrapTab(inboxPanel));
 
         add(tabbedPane, BorderLayout.CENTER);
     }
 
-    // ==================== GESTION DE L'ÉTAT ====================
-
     /**
-     * Charge la configuration et l'état IBE depuis le disque.
+     * Wrap un panel dans un conteneur avec fond et padding.
      */
+    private JPanel wrapTab(JPanel content) {
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(UITheme.BG_MAIN);
+        wrapper.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        wrapper.add(content, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    private void updateIBEBadge() {
+        boolean ready = isIBEReady();
+        ibeBadge.setText(ready ? "  IBE Actif  " : "  IBE Inactif  ");
+        ibeBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        ibeBadge.setForeground(Color.WHITE);
+        ibeBadge.setOpaque(true);
+        ibeBadge.setBackground(ready ? new Color(34, 197, 94) : new Color(239, 68, 68, 200));
+        ibeBadge.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+    }
+
+    // ==================== PERSISTENCE ====================
+
     private void loadConfiguration() {
-        // Créer le répertoire de données si nécessaire
         String appDir = MailConfig.getAppDataDir();
         new File(appDir).mkdirs();
 
-        // Charger la config mail
         try {
             String configPath = MailConfig.getConfigFilePath();
             if (new File(configPath).exists()) {
@@ -100,61 +155,42 @@ public class MainFrame extends JFrame {
             }
         } catch (IOException e) {
             mailConfig = new MailConfig();
-            System.err.println("Erreur lors du chargement de la configuration : " + e.getMessage());
         }
 
-        // Charger les paramètres IBE
         try {
             String paramsPath = MailConfig.getSystemParamsFilePath();
             if (new File(paramsPath).exists()) {
                 systemParams = SystemParameters.loadFromFile(paramsPath);
-                System.out.println("Paramètres IBE chargés depuis le disque.");
             }
         } catch (Exception e) {
-            System.err.println("Erreur lors du chargement des paramètres IBE : " + e.getMessage());
+            System.err.println("Erreur chargement params IBE : " + e.getMessage());
         }
 
-        // Charger la clé privée
         try {
             String keyPath = MailConfig.getPrivateKeyFilePath();
             if (new File(keyPath).exists()) {
                 privateKey = Files.readAllBytes(Path.of(keyPath));
-                System.out.println("Clé privée IBE chargée depuis le disque.");
             }
         } catch (IOException e) {
-            System.err.println("Erreur lors du chargement de la clé privée : " + e.getMessage());
+            System.err.println("Erreur chargement cle privee : " + e.getMessage());
         }
     }
 
-    /**
-     * Sauvegarde la configuration sur le disque.
-     */
     public void saveConfiguration() {
         try {
             mailConfig.save(MailConfig.getConfigFilePath());
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Erreur lors de la sauvegarde : " + e.getMessage(),
-                    "Erreur", JOptionPane.ERROR_MESSAGE);
+            showError("Erreur", "Erreur de sauvegarde : " + e.getMessage());
         }
     }
 
-    /**
-     * Sauvegarde les paramètres IBE sur le disque.
-     */
     public void saveSystemParams() {
         if (systemParams != null) {
-            try {
-                systemParams.saveToFile(MailConfig.getSystemParamsFilePath());
-            } catch (IOException e) {
-                System.err.println("Erreur sauvegarde params IBE : " + e.getMessage());
-            }
+            try { systemParams.saveToFile(MailConfig.getSystemParamsFilePath()); }
+            catch (IOException e) { System.err.println("Erreur sauvegarde params : " + e.getMessage()); }
         }
     }
 
-    /**
-     * Sauvegarde la clé privée IBE sur le disque.
-     */
     public void savePrivateKey() {
         if (privateKey != null) {
             try {
@@ -162,12 +198,12 @@ public class MainFrame extends JFrame {
                 new File(keyPath).getParentFile().mkdirs();
                 Files.write(Path.of(keyPath), privateKey);
             } catch (IOException e) {
-                System.err.println("Erreur sauvegarde clé privée : " + e.getMessage());
+                System.err.println("Erreur sauvegarde cle : " + e.getMessage());
             }
         }
     }
 
-    // ==================== ACCESSEURS ÉTAT PARTAGÉ ====================
+    // ==================== ACCESSEURS ====================
 
     public MailConfig getMailConfig() { return mailConfig; }
 
@@ -175,44 +211,32 @@ public class MainFrame extends JFrame {
     public void setSystemParams(SystemParameters systemParams) {
         this.systemParams = systemParams;
         saveSystemParams();
-        updateStatus("Paramètres IBE chargés.");
+        updateIBEBadge();
+        updateStatus("Parametres IBE charges avec succes.");
     }
 
     public byte[] getPrivateKey() { return privateKey; }
     public void setPrivateKey(byte[] privateKey) {
         this.privateKey = privateKey;
         savePrivateKey();
-        updateStatus("Clé privée IBE enregistrée.");
+        updateIBEBadge();
+        updateStatus("Cle privee IBE enregistree.");
     }
 
-    public boolean isIBEReady() {
-        return systemParams != null && privateKey != null;
-    }
+    public boolean isIBEReady() { return systemParams != null && privateKey != null; }
+    public boolean hasSystemParams() { return systemParams != null; }
 
-    public boolean hasSystemParams() {
-        return systemParams != null;
-    }
+    // ==================== UI HELPERS ====================
 
-    // ==================== UI ====================
-
-    /**
-     * Met à jour la barre de statut.
-     */
     public void updateStatus(String message) {
-        SwingUtilities.invokeLater(() -> statusBar.setText("  " + message));
+        SwingUtilities.invokeLater(() -> statusBar.setText(message));
     }
 
-    /**
-     * Affiche un message d'erreur.
-     */
     public void showError(String title, String message) {
         SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, message, title, JOptionPane.ERROR_MESSAGE));
     }
 
-    /**
-     * Affiche un message d'information.
-     */
     public void showInfo(String title, String message) {
         SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE));

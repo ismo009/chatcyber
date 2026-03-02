@@ -1,25 +1,36 @@
 package com.chatcyber.gui;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
 import com.chatcyber.crypto.SystemParameters;
 import com.chatcyber.crypto.TrustAuthorityClient;
 import com.chatcyber.mail.MailConfig;
 
-import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import java.awt.*;
-
 /**
- * Panneau de configuration de l'application.
- *
- * Sections :
- *   1. Configuration Email — Paramètres SMTP/IMAP et identifiants
- *   2. Autorité de Confiance — Connexion à l'AC et gestion des clés IBE
+ * Panneau de configuration : Email, Autorite de Confiance et etat IBE.
  */
 public class ConfigPanel extends JPanel {
 
     private final MainFrame mainFrame;
 
-    // --- Champs Email ---
     private JTextField tfEmail;
     private JPasswordField tfPassword;
     private JTextField tfSmtpHost;
@@ -27,200 +38,207 @@ public class ConfigPanel extends JPanel {
     private JTextField tfImapHost;
     private JTextField tfImapPort;
 
-    // --- Champs AC ---
     private JTextField tfTaHost;
     private JTextField tfTaPort;
 
-    // --- Indicateurs d'état ---
     private JLabel lblIbeStatus;
     private JLabel lblKeyStatus;
 
     public ConfigPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setLayout(new BorderLayout(0, 0));
+        setBackground(UITheme.BG_MAIN);
         initComponents();
         loadConfig();
     }
 
     private void initComponents() {
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        // Conteneur principal scrollable
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(UITheme.BG_MAIN);
+        content.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
 
-        // ====== Section Email ======
-        JPanel emailPanel = createEmailPanel();
-        mainPanel.add(emailPanel);
-        mainPanel.add(Box.createVerticalStrut(15));
+        // ── Header ──
+        JPanel headerCard = UITheme.headerPanel(
+                "Configuration",
+                "Configurez vos parametres de messagerie et la connexion a l'Autorite de Confiance."
+        );
+        headerCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        headerCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(headerCard);
+        content.add(Box.createVerticalStrut(12));
 
-        // ====== Section Autorité de Confiance ======
-        JPanel taPanel = createTAPanel();
-        mainPanel.add(taPanel);
-        mainPanel.add(Box.createVerticalStrut(15));
+        // ── Email ──
+        content.add(createEmailCard());
+        content.add(Box.createVerticalStrut(12));
 
-        // ====== Section État IBE ======
-        JPanel statusPanel = createStatusPanel();
-        mainPanel.add(statusPanel);
+        // ── Autorite de Confiance ──
+        content.add(createTACard());
+        content.add(Box.createVerticalStrut(12));
 
-        // Scroll si la fenêtre est petite
-        JScrollPane scrollPane = new JScrollPane(mainPanel);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        add(scrollPane, BorderLayout.CENTER);
+        // ── Etat IBE ──
+        content.add(createStatusCard());
+        content.add(Box.createVerticalStrut(12));
 
-        // ====== Bouton Sauvegarder ======
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnSave = new JButton("💾 Sauvegarder la configuration");
+        // ── Bouton sauvegarder ──
+        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        savePanel.setOpaque(false);
+        savePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        savePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton btnSave = UITheme.primaryButton("Sauvegarder la configuration");
         btnSave.addActionListener(e -> saveConfig());
-        buttonPanel.add(btnSave);
-        add(buttonPanel, BorderLayout.SOUTH);
+        savePanel.add(btnSave);
+        content.add(savePanel);
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setBackground(UITheme.BG_MAIN);
+        add(scroll, BorderLayout.CENTER);
     }
 
-    /**
-     * Crée le panneau de configuration email.
-     */
-    private JPanel createEmailPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Configuration Email ",
-                TitledBorder.LEFT, TitledBorder.TOP));
+    private JPanel createEmailCard() {
+        JPanel card = UITheme.card("Configuration Email");
+        card.setLayout(new GridBagLayout());
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 240));
+
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 8, 4, 8);
+        gbc.insets = new Insets(6, 8, 6, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
 
         int row = 0;
 
         // Email
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
-        panel.add(new JLabel("Adresse email :"), gbc);
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0; gbc.gridwidth = 1;
+        card.add(UITheme.formLabel("Adresse email"), gbc);
         gbc.gridx = 1; gbc.weightx = 1; gbc.gridwidth = 2;
-        tfEmail = new JTextField(25);
-        panel.add(tfEmail, gbc);
+        tfEmail = UITheme.styledTextField(25);
+        tfEmail.setToolTipText("Votre adresse email complete");
+        card.add(tfEmail, gbc);
 
         // Mot de passe
         row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0; gbc.gridwidth = 1;
-        panel.add(new JLabel("Mot de passe app :"), gbc);
+        card.add(UITheme.formLabel("Mot de passe"), gbc);
         gbc.gridx = 1; gbc.weightx = 1; gbc.gridwidth = 2;
-        tfPassword = new JPasswordField(25);
-        panel.add(tfPassword, gbc);
+        tfPassword = UITheme.styledPasswordField(25);
+        tfPassword.setToolTipText("Mot de passe d'application (pas votre mot de passe principal)");
+        card.add(tfPassword, gbc);
 
-        // SMTP Host + Port
+        // SMTP
         row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0; gbc.gridwidth = 1;
-        panel.add(new JLabel("Serveur SMTP :"), gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
-        tfSmtpHost = new JTextField(15);
-        panel.add(tfSmtpHost, gbc);
+        card.add(UITheme.formLabel("Serveur SMTP"), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.7; gbc.gridwidth = 1;
+        tfSmtpHost = UITheme.styledTextField(15);
+        card.add(tfSmtpHost, gbc);
         gbc.gridx = 2; gbc.weightx = 0.3;
-        tfSmtpPort = new JTextField(5);
-        panel.add(tfSmtpPort, gbc);
+        tfSmtpPort = UITheme.styledTextField(5);
+        tfSmtpPort.setToolTipText("Port (ex: 587)");
+        card.add(tfSmtpPort, gbc);
 
-        // IMAP Host + Port
+        // IMAP
         row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0; gbc.gridwidth = 1;
-        panel.add(new JLabel("Serveur IMAP :"), gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
-        tfImapHost = new JTextField(15);
-        panel.add(tfImapHost, gbc);
+        card.add(UITheme.formLabel("Serveur IMAP"), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.7; gbc.gridwidth = 1;
+        tfImapHost = UITheme.styledTextField(15);
+        card.add(tfImapHost, gbc);
         gbc.gridx = 2; gbc.weightx = 0.3;
-        tfImapPort = new JTextField(5);
-        panel.add(tfImapPort, gbc);
+        tfImapPort = UITheme.styledTextField(5);
+        tfImapPort.setToolTipText("Port (ex: 993)");
+        card.add(tfImapPort, gbc);
 
         // Note Gmail
         row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3; gbc.weightx = 1;
-        JLabel lblNote = new JLabel(
-                "<html><i>Pour Gmail, utilisez un <b>mot de passe d'application</b> " +
-                        "(Paramètres Google → Sécurité → Mots de passe des applications)</i></html>");
-        lblNote.setForeground(Color.GRAY);
-        lblNote.setFont(lblNote.getFont().deriveFont(11f));
-        panel.add(lblNote, gbc);
+        JLabel lblNote = UITheme.descriptionLabel(
+                "<html>Pour Gmail, utilisez un <b>mot de passe d'application</b> " +
+                        "(Google > Securite > Mots de passe des applications)</html>");
+        card.add(lblNote, gbc);
 
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, panel.getPreferredSize().height));
-        return panel;
+        return card;
     }
 
-    /**
-     * Crée le panneau de configuration de l'Autorité de Confiance.
-     */
-    private JPanel createTAPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Autorité de Confiance (IBE) ",
-                TitledBorder.LEFT, TitledBorder.TOP));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 8, 4, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+    private JPanel createTACard() {
+        JPanel card = UITheme.card("Autorite de Confiance (IBE)");
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
 
-        int row = 0;
+        // Ligne serveur
+        JPanel serverLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        serverLine.setOpaque(false);
+        serverLine.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // TA Host
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
-        panel.add(new JLabel("Serveur AC :"), gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
-        tfTaHost = new JTextField(15);
-        panel.add(tfTaHost, gbc);
-        gbc.gridx = 2; gbc.weightx = 0.3;
-        tfTaPort = new JTextField(5);
-        panel.add(tfTaPort, gbc);
+        serverLine.add(UITheme.formLabel("Serveur AC"));
+        tfTaHost = UITheme.styledTextField(14);
+        serverLine.add(tfTaHost);
+        serverLine.add(UITheme.formLabel("Port"));
+        tfTaPort = UITheme.styledTextField(5);
+        serverLine.add(tfTaPort);
+        card.add(serverLine);
+        card.add(Box.createVerticalStrut(12));
 
-        // Boutons AC
-        row++;
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3; gbc.weightx = 1;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        // Boutons
+        JPanel btnLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        btnLine.setOpaque(false);
+        btnLine.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton btnGetParams = new JButton("🔑 Récupérer les paramètres IBE");
+        JButton btnGetParams = UITheme.outlineButton("Recuperer parametres IBE");
         btnGetParams.addActionListener(e -> fetchSystemParams());
 
-        JButton btnExtractKey = new JButton("🔐 Demander ma clé privée");
+        JButton btnExtractKey = UITheme.primaryButton("Demander ma cle privee");
         btnExtractKey.addActionListener(e -> extractPrivateKey());
 
-        JButton btnLaunchTA = new JButton("🖥 Lancer le serveur AC");
+        JButton btnLaunchTA = UITheme.successButton("Lancer serveur AC");
         btnLaunchTA.addActionListener(e -> launchTrustAuthority());
 
-        btnPanel.add(btnGetParams);
-        btnPanel.add(btnExtractKey);
-        btnPanel.add(btnLaunchTA);
-        panel.add(btnPanel, gbc);
+        btnLine.add(btnGetParams);
+        btnLine.add(btnExtractKey);
+        btnLine.add(btnLaunchTA);
+        card.add(btnLine);
 
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, panel.getPreferredSize().height));
-        return panel;
+        return card;
     }
 
-    /**
-     * Crée le panneau d'état IBE.
-     */
-    private JPanel createStatusPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " État du système IBE ",
-                TitledBorder.LEFT, TitledBorder.TOP));
+    private JPanel createStatusCard() {
+        JPanel card = UITheme.card("Etat du systeme IBE");
+        card.setLayout(new GridBagLayout());
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 8, 4, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(4, 8, 4, 12);
         gbc.anchor = GridBagConstraints.WEST;
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
-        panel.add(new JLabel("Paramètres IBE :"), gbc);
-        gbc.gridx = 1; gbc.weightx = 1;
-        lblIbeStatus = new JLabel(mainFrame.hasSystemParams() ? "✅ Chargés" : "❌ Non chargés");
-        panel.add(lblIbeStatus, gbc);
+        gbc.gridx = 0; gbc.gridy = 0;
+        card.add(UITheme.formLabel("Parametres IBE"), gbc);
+        gbc.gridx = 1;
+        lblIbeStatus = UITheme.statusBadge(
+                mainFrame.hasSystemParams() ? "OK - Charges" : "Non charges",
+                mainFrame.hasSystemParams());
+        card.add(lblIbeStatus, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
-        panel.add(new JLabel("Clé privée :"), gbc);
-        gbc.gridx = 1; gbc.weightx = 1;
-        lblKeyStatus = new JLabel(mainFrame.getPrivateKey() != null ? "✅ Disponible" : "❌ Non disponible");
-        panel.add(lblKeyStatus, gbc);
+        gbc.gridx = 2;
+        card.add(Box.createHorizontalStrut(30), gbc);
 
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, panel.getPreferredSize().height));
-        return panel;
+        gbc.gridx = 3;
+        card.add(UITheme.formLabel("Cle privee"), gbc);
+        gbc.gridx = 4;
+        lblKeyStatus = UITheme.statusBadge(
+                mainFrame.getPrivateKey() != null ? "OK - Disponible" : "Non disponible",
+                mainFrame.getPrivateKey() != null);
+        card.add(lblKeyStatus, gbc);
+
+        return card;
     }
 
     // ==================== ACTIONS ====================
 
-    /**
-     * Charge les valeurs de la configuration dans les champs de l'interface.
-     */
     private void loadConfig() {
         MailConfig cfg = mainFrame.getMailConfig();
         tfEmail.setText(cfg.getEmail());
@@ -233,9 +251,6 @@ public class ConfigPanel extends JPanel {
         tfTaPort.setText(String.valueOf(cfg.getTaPort()));
     }
 
-    /**
-     * Sauvegarde les valeurs des champs dans la configuration.
-     */
     private void saveConfig() {
         MailConfig cfg = mainFrame.getMailConfig();
         cfg.setEmail(tfEmail.getText().trim());
@@ -248,15 +263,12 @@ public class ConfigPanel extends JPanel {
         try { cfg.setTaPort(Integer.parseInt(tfTaPort.getText().trim())); } catch (NumberFormatException ignored) {}
 
         mainFrame.saveConfiguration();
-        mainFrame.updateStatus("Configuration sauvegardée.");
-        mainFrame.showInfo("Sauvegarde", "Configuration sauvegardée avec succès.");
+        mainFrame.updateStatus("Configuration sauvegardee.");
+        mainFrame.showInfo("Sauvegarde", "Configuration sauvegardee avec succes.");
     }
 
-    /**
-     * Récupère les paramètres publics IBE depuis l'Autorité de Confiance.
-     */
     private void fetchSystemParams() {
-        mainFrame.updateStatus("Connexion à l'Autorité de Confiance...");
+        mainFrame.updateStatus("Connexion a l'Autorite de Confiance...");
 
         new Thread(() -> {
             try {
@@ -264,35 +276,30 @@ public class ConfigPanel extends JPanel {
                         tfTaHost.getText().trim(),
                         Integer.parseInt(tfTaPort.getText().trim())
                 );
-
                 SystemParameters params = taClient.getParameters();
                 mainFrame.setSystemParams(params);
 
                 SwingUtilities.invokeLater(() -> {
-                    lblIbeStatus.setText("✅ Chargés");
-                    mainFrame.showInfo("Succès",
-                            "Paramètres IBE récupérés avec succès depuis l'Autorité de Confiance.");
+                    updateStatusBadge(lblIbeStatus, true, "OK - Charges");
+                    mainFrame.showInfo("Succes",
+                            "Parametres IBE recuperes avec succes depuis l'Autorite de Confiance.");
                 });
-
             } catch (Exception ex) {
                 mainFrame.showError("Erreur de connexion",
-                        "Impossible de contacter l'Autorité de Confiance :\n" + ex.getMessage());
-                mainFrame.updateStatus("Erreur de connexion à l'AC.");
+                        "Impossible de contacter l'Autorite de Confiance :\n" + ex.getMessage());
+                mainFrame.updateStatus("Erreur de connexion a l'AC.");
             }
         }).start();
     }
 
-    /**
-     * Demande l'extraction de la clé privée à l'Autorité de Confiance.
-     */
     private void extractPrivateKey() {
         String email = tfEmail.getText().trim();
         if (email.isEmpty()) {
-            mainFrame.showError("Erreur", "Veuillez renseigner votre adresse email dans la configuration.");
+            mainFrame.showError("Erreur", "Veuillez renseigner votre adresse email.");
             return;
         }
 
-        mainFrame.updateStatus("Demande de clé privée pour " + email + "...");
+        mainFrame.updateStatus("Demande de cle privee pour " + email + "...");
 
         new Thread(() -> {
             try {
@@ -300,44 +307,45 @@ public class ConfigPanel extends JPanel {
                         tfTaHost.getText().trim(),
                         Integer.parseInt(tfTaPort.getText().trim())
                 );
-
                 byte[] key = taClient.extractKey(email);
                 mainFrame.setPrivateKey(key);
 
                 SwingUtilities.invokeLater(() -> {
-                    lblKeyStatus.setText("✅ Disponible");
-                    mainFrame.showInfo("Succès",
-                            "Clé privée IBE reçue pour : " + email +
-                                    "\n(" + key.length + " octets)");
+                    updateStatusBadge(lblKeyStatus, true, "OK - Disponible");
+                    mainFrame.showInfo("Succes",
+                            "Cle privee IBE recue pour : " + email + "\n(" + key.length + " octets)");
                 });
-
             } catch (Exception ex) {
                 mainFrame.showError("Erreur d'extraction",
-                        "Impossible d'extraire la clé privée :\n" + ex.getMessage());
-                mainFrame.updateStatus("Erreur d'extraction de la clé privée.");
+                        "Impossible d'extraire la cle privee :\n" + ex.getMessage());
+                mainFrame.updateStatus("Erreur d'extraction de la cle privee.");
             }
         }).start();
     }
 
-    /**
-     * Lance le serveur de l'Autorité de Confiance dans une fenêtre séparée.
-     */
     private void launchTrustAuthority() {
         int port;
-        try {
-            port = Integer.parseInt(tfTaPort.getText().trim());
-        } catch (NumberFormatException e) {
-            port = 7777;
-        }
+        try { port = Integer.parseInt(tfTaPort.getText().trim()); }
+        catch (NumberFormatException e) { port = 7777; }
         TrustAuthorityFrame taFrame = new TrustAuthorityFrame(port);
         taFrame.setVisible(true);
     }
 
-    /**
-     * Met à jour l'affichage de l'état IBE.
-     */
+    private void updateStatusBadge(JLabel badge, boolean ok, String text) {
+        badge.setText(text);
+        if (ok) {
+            badge.setBackground(new Color(209, 250, 229));
+            badge.setForeground(new Color(6, 95, 70));
+        } else {
+            badge.setBackground(new Color(254, 226, 226));
+            badge.setForeground(new Color(153, 27, 27));
+        }
+    }
+
     public void refreshStatus() {
-        lblIbeStatus.setText(mainFrame.hasSystemParams() ? "✅ Chargés" : "❌ Non chargés");
-        lblKeyStatus.setText(mainFrame.getPrivateKey() != null ? "✅ Disponible" : "❌ Non disponible");
+        updateStatusBadge(lblIbeStatus, mainFrame.hasSystemParams(),
+                mainFrame.hasSystemParams() ? "OK - Charges" : "Non charges");
+        updateStatusBadge(lblKeyStatus, mainFrame.getPrivateKey() != null,
+                mainFrame.getPrivateKey() != null ? "OK - Disponible" : "Non disponible");
     }
 }

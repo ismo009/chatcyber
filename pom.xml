@@ -43,27 +43,27 @@
 
         <!-- JPBC - Java Pairing Based Cryptography -->
         <dependency>
-            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-api</artifactId>
             <version>2.0.0</version>
         </dependency>
         <dependency>
-            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-plaf</artifactId>
             <version>2.0.0</version>
         </dependency>
         <dependency>
-            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-crypto</artifactId>
             <version>2.0.0</version>
         </dependency>
         <dependency>
-            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-pbc</artifactId>
             <version>2.0.0</version>
         </dependency>
         <dependency>
-            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-mm</artifactId>
             <version>2.0.0</version>
         </dependency>

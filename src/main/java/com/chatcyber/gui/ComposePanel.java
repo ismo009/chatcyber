@@ -1,22 +1,32 @@
 package com.chatcyber.gui;
 
-import com.chatcyber.crypto.IBECipher;
-import com.chatcyber.mail.MailConfig;
-import com.chatcyber.mail.MailSender;
-
-import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.io.File;
 
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
+import com.chatcyber.crypto.IBECipher;
+import com.chatcyber.mail.MailSender;
+
 /**
- * Panneau de composition et d'envoi de mails.
- *
- * Fonctionnalités :
- *   - Saisie du destinataire, objet, corps du message
- *   - Sélection d'une pièce jointe
- *   - Option de chiffrement IBE de la pièce jointe
- *   - Envoi du mail via SMTP
+ * Panneau de composition et d'envoi de mails avec chiffrement IBE.
  */
 public class ComposePanel extends JPanel {
 
@@ -33,123 +43,155 @@ public class ComposePanel extends JPanel {
 
     public ComposePanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setLayout(new BorderLayout(0, 0));
+        setBackground(UITheme.BG_MAIN);
         initComponents();
     }
 
     private void initComponents() {
-        // ====== Panneau d'en-tête (destinataire, objet) ======
-        JPanel headerPanel = new JPanel(new GridBagLayout());
-        headerPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Nouveau message ",
-                TitledBorder.LEFT, TitledBorder.TOP));
+        JPanel content = new JPanel(new BorderLayout(0, 12));
+        content.setBackground(UITheme.BG_MAIN);
+
+        // ── Header ──
+        JPanel headerCard = UITheme.headerPanel(
+                "Composer un message",
+                "Redigez et envoyez un email securise avec chiffrement IBE."
+        );
+        content.add(headerCard, BorderLayout.NORTH);
+
+        // ── Zone centrale ──
+        JPanel centerPanel = new JPanel(new BorderLayout(0, 12));
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 0, 8));
+
+        // Carte destinataire / objet
+        JPanel fieldsCard = UITheme.card("Destinataire");
+        fieldsCard.setLayout(new GridBagLayout());
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 8, 4, 8);
+        gbc.insets = new Insets(6, 8, 6, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
 
-        // Destinataire
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
-        headerPanel.add(new JLabel("Destinataire :"), gbc);
+        fieldsCard.add(UITheme.formLabel("A :"), gbc);
         gbc.gridx = 1; gbc.weightx = 1;
-        tfTo = new JTextField(30);
+        tfTo = UITheme.styledTextField(30);
         tfTo.setToolTipText("Adresse email du destinataire");
-        headerPanel.add(tfTo, gbc);
+        fieldsCard.add(tfTo, gbc);
 
-        // Objet
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
-        headerPanel.add(new JLabel("Objet :"), gbc);
+        fieldsCard.add(UITheme.formLabel("Objet :"), gbc);
         gbc.gridx = 1; gbc.weightx = 1;
-        tfSubject = new JTextField(30);
-        headerPanel.add(tfSubject, gbc);
+        tfSubject = UITheme.styledTextField(30);
+        fieldsCard.add(tfSubject, gbc);
 
-        add(headerPanel, BorderLayout.NORTH);
+        centerPanel.add(fieldsCard, BorderLayout.NORTH);
 
-        // ====== Corps du message ======
+        // Corps du message
+        JPanel bodyCard = new JPanel(new BorderLayout());
+        bodyCard.setBackground(UITheme.BG_CARD);
+        bodyCard.setBorder(UITheme.cardBorderWithTitle("Message"));
+
         taBody = new JTextArea();
         taBody.setLineWrap(true);
         taBody.setWrapStyleWord(true);
-        taBody.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
-        taBody.setMargin(new Insets(8, 8, 8, 8));
+        taBody.setFont(UITheme.FONT_BODY);
+        taBody.setMargin(new Insets(10, 12, 10, 12));
+        taBody.setBorder(null);
 
         JScrollPane bodyScroll = new JScrollPane(taBody);
-        bodyScroll.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Corps du message ",
-                TitledBorder.LEFT, TitledBorder.TOP));
-        add(bodyScroll, BorderLayout.CENTER);
+        bodyScroll.setBorder(BorderFactory.createLineBorder(UITheme.BORDER, 1));
+        bodyCard.add(bodyScroll, BorderLayout.CENTER);
 
-        // ====== Panneau du bas (pièce jointe + envoi) ======
+        centerPanel.add(bodyCard, BorderLayout.CENTER);
+        content.add(centerPanel, BorderLayout.CENTER);
+
+        // ── Panneau du bas ──
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
+        bottomPanel.setOpaque(false);
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
 
-        // Pièce jointe
-        JPanel attachPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        attachPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), " Pièce jointe ",
-                TitledBorder.LEFT, TitledBorder.TOP));
+        // Piece jointe
+        JPanel attachCard = UITheme.card("Piece jointe");
+        attachCard.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 6));
+        attachCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+        attachCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        tfAttachment = new JTextField(30);
+        tfAttachment = UITheme.styledTextField(28);
         tfAttachment.setEditable(false);
-        tfAttachment.setText("Aucun fichier sélectionné");
+        tfAttachment.setText("Aucun fichier selectionne");
+        tfAttachment.setForeground(UITheme.TEXT_MUTED);
 
-        JButton btnBrowse = new JButton("📁 Parcourir...");
+        JButton btnBrowse = UITheme.outlineButton("Parcourir...");
         btnBrowse.addActionListener(e -> browseFile());
 
-        JButton btnClear = new JButton("✖ Retirer");
+        JButton btnClear = UITheme.dangerButton("X");
+        btnClear.setToolTipText("Retirer la piece jointe");
+        btnClear.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         btnClear.addActionListener(e -> {
             selectedFile = null;
-            tfAttachment.setText("Aucun fichier sélectionné");
+            tfAttachment.setText("Aucun fichier selectionne");
+            tfAttachment.setForeground(UITheme.TEXT_MUTED);
         });
 
-        cbEncrypt = new JCheckBox("Chiffrer avec IBE (identité du destinataire)", true);
-        cbEncrypt.setToolTipText("Chiffre la pièce jointe avec l'identité IBE du destinataire");
+        cbEncrypt = new JCheckBox("Chiffrer avec IBE (identite du destinataire)");
+        cbEncrypt.setSelected(true);
+        cbEncrypt.setFont(UITheme.FONT_BODY);
+        cbEncrypt.setOpaque(false);
+        cbEncrypt.setForeground(UITheme.TEXT_PRIMARY);
+        cbEncrypt.setToolTipText("Chiffre la piece jointe avec l'identite IBE du destinataire");
 
-        attachPanel.add(tfAttachment);
-        attachPanel.add(btnBrowse);
-        attachPanel.add(btnClear);
-        attachPanel.add(cbEncrypt);
+        attachCard.add(tfAttachment);
+        attachCard.add(btnBrowse);
+        attachCard.add(btnClear);
+        attachCard.add(cbEncrypt);
 
-        bottomPanel.add(attachPanel);
+        bottomPanel.add(attachCard);
+        bottomPanel.add(Box.createVerticalStrut(10));
 
         // Barre de progression + bouton envoi
-        JPanel sendPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        JPanel sendBar = new JPanel(new BorderLayout());
+        sendBar.setOpaque(false);
+        sendBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        sendBar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         progressBar = new JProgressBar();
         progressBar.setIndeterminate(false);
         progressBar.setVisible(false);
-        progressBar.setPreferredSize(new Dimension(200, 22));
-        sendPanel.add(progressBar);
+        progressBar.setPreferredSize(new Dimension(200, 8));
+        progressBar.setBorderPainted(false);
 
-        btnSend = new JButton("📤 Envoyer");
-        btnSend.setFont(btnSend.getFont().deriveFont(Font.BOLD, 14f));
-        btnSend.setPreferredSize(new Dimension(150, 35));
+        JPanel progressWrap = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        progressWrap.setOpaque(false);
+        progressWrap.add(progressBar);
+
+        btnSend = UITheme.successButton("Envoyer le message");
+        btnSend.setPreferredSize(new Dimension(200, 40));
         btnSend.addActionListener(e -> sendEmail());
-        sendPanel.add(btnSend);
 
-        bottomPanel.add(sendPanel);
-        add(bottomPanel, BorderLayout.SOUTH);
+        sendBar.add(progressWrap, BorderLayout.CENTER);
+        sendBar.add(btnSend, BorderLayout.EAST);
+
+        bottomPanel.add(sendBar);
+        content.add(bottomPanel, BorderLayout.SOUTH);
+
+        add(content, BorderLayout.CENTER);
     }
 
-    /**
-     * Ouvre un sélecteur de fichier pour choisir la pièce jointe.
-     */
     private void browseFile() {
         JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Sélectionner une pièce jointe");
+        chooser.setDialogTitle("Selectionner une piece jointe");
         int result = chooser.showOpenDialog(this);
-
         if (result == JFileChooser.APPROVE_OPTION) {
             selectedFile = chooser.getSelectedFile();
             tfAttachment.setText(selectedFile.getName() + " (" + formatSize(selectedFile.length()) + ")");
+            tfAttachment.setForeground(UITheme.TEXT_PRIMARY);
         }
     }
 
-    /**
-     * Envoie le mail (avec chiffrement optionnel de la pièce jointe).
-     */
     private void sendEmail() {
-        // Validation
         String to = tfTo.getText().trim();
         String subject = tfSubject.getText().trim();
         String body = taBody.getText();
@@ -162,18 +204,12 @@ public class ComposePanel extends JPanel {
             mainFrame.showError("Erreur", "Veuillez configurer vos identifiants email dans l'onglet Configuration.");
             return;
         }
-
-        // Vérifier les prérequis IBE si chiffrement demandé
-        if (selectedFile != null && cbEncrypt.isSelected()) {
-            if (!mainFrame.hasSystemParams()) {
-                mainFrame.showError("Erreur IBE",
-                        "Les paramètres IBE ne sont pas chargés.\n" +
-                                "Allez dans Configuration → Récupérer les paramètres IBE.");
-                return;
-            }
+        if (selectedFile != null && cbEncrypt.isSelected() && !mainFrame.hasSystemParams()) {
+            mainFrame.showError("Erreur IBE",
+                    "Les parametres IBE ne sont pas charges.\nAllez dans Configuration > Recuperer les parametres IBE.");
+            return;
         }
 
-        // Envoi en arrière-plan
         btnSend.setEnabled(false);
         progressBar.setVisible(true);
         progressBar.setIndeterminate(true);
@@ -183,10 +219,8 @@ public class ComposePanel extends JPanel {
             try {
                 File fileToAttach = selectedFile;
 
-                // Chiffrement IBE de la pièce jointe si demandé
                 if (selectedFile != null && cbEncrypt.isSelected()) {
-                    mainFrame.updateStatus("Chiffrement de la pièce jointe avec IBE...");
-
+                    mainFrame.updateStatus("Chiffrement de la piece jointe...");
                     IBECipher cipher = new IBECipher(mainFrame.getSystemParams());
                     File encryptedFile = new File(
                             System.getProperty("java.io.tmpdir"),
@@ -194,18 +228,15 @@ public class ComposePanel extends JPanel {
                     );
                     cipher.encryptFile(selectedFile, encryptedFile, to);
                     fileToAttach = encryptedFile;
-
-                    System.out.println("[IBE] Fichier chiffré : " + encryptedFile.getAbsolutePath());
                 }
 
-                // Envoi du mail
-                mainFrame.updateStatus("Envoi du mail à " + to + "...");
+                mainFrame.updateStatus("Envoi du mail a " + to + "...");
                 MailSender sender = new MailSender(mainFrame.getMailConfig());
                 sender.sendEmail(to, subject, body, fileToAttach);
 
                 SwingUtilities.invokeLater(() -> {
-                    mainFrame.updateStatus("Mail envoyé avec succès à " + to);
-                    mainFrame.showInfo("Succès", "Mail envoyé avec succès à " + to);
+                    mainFrame.updateStatus("Mail envoye avec succes a " + to);
+                    mainFrame.showInfo("Succes", "Mail envoye avec succes a " + to);
                     clearForm();
                 });
 
@@ -222,20 +253,15 @@ public class ComposePanel extends JPanel {
         }).start();
     }
 
-    /**
-     * Réinitialise le formulaire après un envoi réussi.
-     */
     private void clearForm() {
         tfTo.setText("");
         tfSubject.setText("");
         taBody.setText("");
         selectedFile = null;
-        tfAttachment.setText("Aucun fichier sélectionné");
+        tfAttachment.setText("Aucun fichier selectionne");
+        tfAttachment.setForeground(UITheme.TEXT_MUTED);
     }
 
-    /**
-     * Formate une taille en octets pour l'affichage.
-     */
     private String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " o";
         if (bytes < 1024 * 1024) return String.format("%.1f Ko", bytes / 1024.0);

@@ -38,7 +38,6 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <transformers>
                 <transformer>
                   <mainClass>com.chatcyber.App</mainClass>
@@ -60,71 +59,12 @@
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-    <dependency>
-      <groupId>com.sun.mail</groupId>
-      <artifactId>javax.mail</artifactId>
-      <version>1.6.2</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/javax.mail-1.6.2.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>javax.activation</groupId>
-      <artifactId>activation</artifactId>
-      <version>1.1.1</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/activation.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>it.unisa.dia.gas.jpbc</groupId>
-      <artifactId>jpbc-api</artifactId>
-      <version>2.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jpbc-api-2.0.0.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>it.unisa.dia.gas.jpbc</groupId>
-      <artifactId>jpbc-plaf</artifactId>
-      <version>2.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jpbc-plaf-2.0.0.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>it.unisa.dia.gas.jpbc</groupId>
-      <artifactId>jpbc-crypto</artifactId>
-      <version>2.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jpbc-crypto-2.0.0.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>it.unisa.dia.gas.jpbc</groupId>
-      <artifactId>jpbc-pbc</artifactId>
-      <version>2.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jpbc-pbc-2.0.0.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>it.unisa.dia.gas.jpbc</groupId>
-      <artifactId>jpbc-mm</artifactId>
-      <version>2.0.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jpbc-mm-2.0.0.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk16</artifactId>
-      <version>1.46</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/bcprov-jdk16-1.46.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>net.java.dev.jna</groupId>
-      <artifactId>jna</artifactId>
-      <version>3.2.5</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/jna-3.2.5.jar</systemPath>
-    </dependency>
-  </dependencies>
+  <repositories>
+    <repository>
+      <id>project-local</id>
+      <url>file://${project.basedir}/repo</url>
+    </repository>
+  </repositories>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>11</maven.compiler.target>

@@ -1,40 +1,32 @@
 package com.chatcyber;
 
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.chatcyber.gui.MainFrame;
+import com.chatcyber.gui.UITheme;
 import com.formdev.flatlaf.FlatLightLaf;
 
-import javax.swing.*;
-
 /**
- * Point d'entrée principal de l'application client mail sécurisé.
- *
- * Lance l'interface graphique du client mail avec support du chiffrement
- * à base d'identité (IBE - Boneh-Franklin).
- *
- * Usage :
- *   java -jar chatcyber.jar             → Lance le client mail
- *   java -cp chatcyber.jar com.chatcyber.TrustAuthorityApp [port]
- *                                        → Lance le serveur de l'Autorité de Confiance
+ * Point d'entree de l'application client ChatCyber.
  */
 public class App {
-
     public static void main(String[] args) {
-        // Appliquer le Look and Feel FlatLaf (moderne)
-        try {
-            FlatLightLaf.setup();
-            UIManager.put("Component.focusWidth", 1);
-            UIManager.put("TextComponent.arc", 5);
-            UIManager.put("Button.arc", 5);
-        } catch (Exception e) {
-            // Fallback vers le Look and Feel par défaut du système
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception ignored) {
-            }
-        }
-
-        // Lancer l'interface graphique sur le thread EDT
         SwingUtilities.invokeLater(() -> {
+            try {
+                FlatLightLaf.setup();
+                UIManager.put("Component.focusWidth", 1);
+                UIManager.put("TextComponent.arc", 8);
+                UIManager.put("Button.arc", 8);
+                UIManager.put("Component.arrowType", "chevron");
+                UIManager.put("ScrollBar.trackArc", 999);
+                UIManager.put("ScrollBar.thumbArc", 999);
+                UIManager.put("ScrollBar.width", 10);
+                UITheme.applyGlobalTheme();
+            } catch (Exception e) {
+                System.err.println("Impossible de charger le theme FlatLaf : " + e.getMessage());
+            }
+
             MainFrame frame = new MainFrame();
             frame.setVisible(true);
         });
