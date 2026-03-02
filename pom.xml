@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.chatcyber</groupId>
+    <artifactId>chatcyber</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>ChatCyber - Messagerie Sécurisée IBE</name>
+    <description>Client mail sécurisé avec chiffrement à base d'identité (Boneh-Franklin IBE)</description>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- Dépôt Maven local dans le projet pour les JARs JPBC/JavaMail -->
+    <repositories>
+        <repository>
+            <id>project-local</id>
+            <url>file://${project.basedir}/repo</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- JavaMail API -->
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+
+        <!-- JavaBeans Activation (requis par JavaMail sous Java 11+) -->
+        <dependency>
+            <groupId>javax.activation</groupId>
+            <artifactId>activation</artifactId>
+            <version>1.1.1</version>
+        </dependency>
+
+        <!-- JPBC - Java Pairing Based Cryptography -->
+        <dependency>
+            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <artifactId>jpbc-api</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <artifactId>jpbc-plaf</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <artifactId>jpbc-crypto</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <artifactId>jpbc-pbc</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>it.unisa.dia.gas.jpbc</groupId>
+            <artifactId>jpbc-mm</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
+        <!-- BouncyCastle (requis par JPBC) -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk16</artifactId>
+            <version>1.46</version>
+        </dependency>
+
+        <!-- JNA (requis par JPBC) -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>3.2.5</version>
+        </dependency>
+
+        <!-- FlatLaf - Look and Feel moderne pour Swing -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.2.5</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compilateur Java -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- JAR avec main class -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.chatcyber.App</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Shade plugin pour créer un JAR exécutable avec toutes les dépendances -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.chatcyber.App</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
