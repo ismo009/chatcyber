@@ -3,6 +3,33 @@
 > Chaque section = une personne = une couleur distincte.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+    'sectionBkgColor': '#dbeafe',
+    'sectionBkgColor2': '#fce7f3',
+    'altSectionBkgColor': '#d1fae5',
+    'taskBkgColor': '#2563eb',
+    'taskTextColor': '#ffffff',
+    'taskBorderColor': '#1d4ed8',
+    'doneTaskBkgColor': '#2563eb',
+    'doneTaskBorderColor': '#1d4ed8',
+    'activeTaskBkgColor': '#f59e0b',
+    'activeTaskBorderColor': '#d97706',
+    'section0': '#3b82f6',
+    'section1': '#ec4899',
+    'section2': '#10b981',
+    'section3': '#f59e0b',
+    'section4': '#8b5cf6',
+    'taskText0': '#ffffff',
+    'taskText1': '#ffffff',
+    'taskText2': '#ffffff',
+    'taskText3': '#ffffff',
+    'taskText4': '#ffffff',
+    'cScale0': '#3b82f6',
+    'cScale1': '#ec4899',
+    'cScale2': '#10b981',
+    'cScale3': '#f59e0b',
+    'cScale4': '#8b5cf6'
+}}}%%
 gantt
     title Planification du projet ChatCyber
     dateFormat YYYY-MM-DD
