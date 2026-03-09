@@ -1,23 +1,36 @@
 package com.chatcyber.crypto;
 
-import it.unisa.dia.gas.jpbc.*;
-import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;
-import it.unisa.dia.gas.plaf.jpbc.pairing.a.TypeACurveGenerator;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import it.unisa.dia.gas.jpbc.Element;
+import it.unisa.dia.gas.jpbc.Pairing;
+import it.unisa.dia.gas.jpbc.PairingParameters;
+import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;
+import it.unisa.dia.gas.plaf.jpbc.pairing.a.TypeACurveGenerator;
+
 /**
- * Autorité de Confiance (Trust Authority) pour le système IBE de Boneh-Franklin.
+ * Autorité de Confiance (Trust Authority / PKG) pour le système IBE de Boneh-Franklin.
  *
  * Responsabilités :
- * - Setup  : Génération des paramètres du système et de la clé maîtresse secrète.
- * - Extract: Génération de la clé privée d'un utilisateur à partir de son identité (email).
+ * - Setup   : Génération des paramètres publics et de la clé maîtresse secrète.
+ * - Extract : Génération de la clé privée d'un utilisateur à partir de son identité.
  *
- * Schéma de Boneh-Franklin :
- *   Setup   → (params, masterKey) où params = (G1, GT, e, P, Ppub, H1, H2)
- *   Extract → dID = s · H1(ID) pour une identité ID
+ * Schéma FullIdent de Boneh-Franklin (cours IBE, pages 35-40) :
+ *
+ *   Setup :
+ *     e : G × G → GT   (pairing bilinéaire, courbe Type A symétrique)
+ *     P ∈ G1            (générateur)
+ *     s ∈ Zp*           (clé maîtresse secrète — MSK)
+ *     Ppub = s · P      (clé publique maîtresse)
+ *     PP = (P, Ppub, H1, H2, H3, H4) publiés ; s gardé secret
+ *
+ *   Extract (Key-Gen) :
+ *     QID = H1(id)       (H1 : {0,1}* → G1* via newElementFromHash)
+ *     dID = s · QID      (clé privée de l'identité id)
+ *
+ *   Les fonctions H2, H3, H4 sont implantées dans IBECipher (côté client).
  */
 public class TrustAuthority {
 
@@ -27,14 +40,8 @@ public class TrustAuthority {
     private Element publicKeyPpub;  // Ppub = s·P ∈ G1 (clé publique maîtresse)
     private String pairingParamsString;
 
-    /**
-     * Phase Setup du schéma de Boneh-Franklin.
-     * Génère les paramètres de la courbe elliptique, le générateur, et la paire de clés maîtresses.
-     *
-     * @param rBits Nombre de bits pour l'ordre du sous-groupe (sécurité ≈ rBits/2)
-     * @param qBits Nombre de bits pour le corps fini Fq
-     */
-    public void setup(int rBits, int qBits) {
+    public void setup(int rBits, int qBits) { //rBits=nb bits ordre sous groupe ; qBits = nb bits corps fq
+        //Setup du système IBE de Boneh-Franklin
         System.out.println("[TA] Génération des paramètres de courbe Type A (r=" + rBits + ", q=" + qBits + ")...");
 
         // Génération des paramètres de la courbe bilinéaire de Type A
