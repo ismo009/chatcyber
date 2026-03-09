@@ -18,20 +18,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!-- Dépôt Maven local dans le projet pour les JARs JPBC/JavaMail -->
-    <repositories>
-        <repository>
-            <id>project-local</id>
-            <url>file://${project.basedir}/repo</url>
-        </repository>
-    </repositories>
-
     <dependencies>
         <!-- JavaMail API -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>javax.mail</artifactId>
             <version>1.6.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/javax.mail-1.6.2.jar</systemPath>
         </dependency>
 
         <!-- JavaBeans Activation (requis par JavaMail sous Java 11+) -->
@@ -39,6 +33,8 @@
             <groupId>javax.activation</groupId>
             <artifactId>activation</artifactId>
             <version>1.1.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/activation.jar</systemPath>
         </dependency>
 
         <!-- JPBC - Java Pairing Based Cryptography -->
@@ -46,26 +42,36 @@
             <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-api</artifactId>
             <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jpbc-api-2.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-plaf</artifactId>
             <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jpbc-plaf-2.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-crypto</artifactId>
             <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jpbc-crypto-2.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-pbc</artifactId>
             <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jpbc-pbc-2.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>it.unisa.dia.gas</groupId>
             <artifactId>jpbc-mm</artifactId>
             <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jpbc-mm-2.0.0.jar</systemPath>
         </dependency>
 
         <!-- BouncyCastle (requis par JPBC) -->
@@ -73,6 +79,8 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk16</artifactId>
             <version>1.46</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/bcprov-jdk16-1.46.jar</systemPath>
         </dependency>
 
         <!-- JNA (requis par JPBC) -->
@@ -80,6 +88,8 @@
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>3.2.5</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/includes/jna-3.2.5.jar</systemPath>
         </dependency>
 
         <!-- FlatLaf - Look and Feel moderne pour Swing -->

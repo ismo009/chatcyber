@@ -3,6 +3,10 @@ target/
 *.class
 *.jar
 
+# Dépendances locales dans includes/ (suivies par git)
+!includes/
+!includes/*.jar
+
 # IDE
 .idea/
 *.iml
