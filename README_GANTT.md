@@ -35,7 +35,7 @@ gantt
     dateFormat YYYY-MM-DD
     axisFormat %d/%m
 
-    section Ismael
+    section Zachary
     Etude du schema IBE Boneh-Franklin        :done, r1, 2026-01-06, 10d
     Conception de l architecture               :done, r3, after r1, 5d
     Implementation SystemParameters            :done, c1, 2026-01-20, 5d
@@ -44,7 +44,7 @@ gantt
     Integration IBE - Mail - GUI               :done, i1, 2026-03-17, 7d
     Chiffrement pieces jointes envoi           :done, i2, after i1, 5d
 
-    section Julian
+    section Ismael
     Design du theme UITheme                    :done, g1, 2026-02-17, 5d
     Fenetre principale MainFrame               :done, g2, after g1, 5d
     Onglet Composer ComposePanel               :done, g4, after g2, 7d
@@ -52,7 +52,7 @@ gantt
     Dechiffrement pieces jointes reception     :done, i3, after i2, 5d
     Correction de bugs                         :done, i6, 2026-04-07, 5d
 
-    section Zachary
+    section Julian
     Configuration MailConfig                   :done, m1, 2026-02-03, 3d
     Modele EmailMessage                        :done, m4, 2026-02-03, 2d
     Implementation MailSender SMTP             :done, m2, after m1, 7d
@@ -82,8 +82,8 @@ gantt
 
 | Membre | Rôle principal | Tâches clés |
 |--------|---------------|-------------|
-| **Ismael** | Cryptographie IBE | SystemParameters, TrustAuthority, IBECipher, intégration, chiffrement envoi |
-| **Julian** | Interface graphique | UITheme, MainFrame, ComposePanel, InboxPanel, déchiffrement réception, bugs |
-| **Zachary** | Messagerie email | MailConfig, MailSender, MailReceiver, EmailMessage, tests mail, persistance |
+| **Zachary** | Cryptographie IBE | SystemParameters, TrustAuthority, IBECipher, intégration, chiffrement envoi |
+| **Ismael** | Interface graphique | UITheme, MainFrame, ComposePanel, InboxPanel, déchiffrement réception, bugs |
+| **Julian** | Messagerie email | MailConfig, MailSender, MailReceiver, EmailMessage, tests mail, persistance |
 | **Robin** | Recherche & Documentation | Étude JPBC, choix technos, README, README-UI, Gantt, soutenance |
 | **Albin** | Réseau & Tests | TrustAuthorityServer/Client, ConfigPanel, TrustAuthorityFrame, tests E2E |
