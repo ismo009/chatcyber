@@ -56,6 +56,7 @@ public class IBECipher {
         }
 
         byte[] plaintext = decrypt(ciphertext, privateKeyBytes);
+        originalName = normalizeLegacyEncryptedName(originalName);
 
         if (!outputDir.exists()) {
             outputDir.mkdirs();
@@ -191,5 +192,14 @@ public class IBECipher {
         } catch (IOException e) {
             throw new RuntimeException("Erreur lors du chargement des paramètres de pairing", e);
         }
+    }
+
+    private String normalizeLegacyEncryptedName(String name) {
+        if (name == null || name.isBlank()) {
+            return "fichier_dechiffre";
+        }
+        return name
+                .replaceFirst("_(\\d{10,})_(\\d+)( \\\\(\\d+\\\\))?$", "")
+                .replaceFirst("_(\\d{10,})$", "");
     }
 }

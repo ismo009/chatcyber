@@ -10,6 +10,7 @@ import java.awt.Insets;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -229,30 +230,31 @@ public class ComposePanel extends JPanel {
                 if (!attachmentsSnapshot.isEmpty() && cbEncrypt.isSelected()) {
                     mainFrame.updateStatus("Recuperation des infos de chiffrement depuis l'AC...");
 
-                    TrustAuthorityClient taClient = new TrustAuthorityClient(
-                        mainFrame.getMailConfig().getTaHost(),
-                        mainFrame.getMailConfig().getTaPort()
-                    );
-                    SystemParameters params = taClient.getEncryptionInfo(to);
-
-                        if (!mainFrame.hasSystemParams()) {
+                    SystemParameters params = mainFrame.getSystemParams();
+                    if (params == null) {
+                        TrustAuthorityClient taClient = new TrustAuthorityClient(
+                                mainFrame.getMailConfig().getTaHost(),
+                                mainFrame.getMailConfig().getTaPort()
+                        );
+                        params = taClient.getParameters();
                         mainFrame.setSystemParams(params);
-                        }
+                    }
 
-                    mainFrame.updateStatus("Chiffrement de la piece jointe...");
+                    mainFrame.updateStatus("Chiffrement des pieces jointes...");
                     IBECipher cipher = new IBECipher(params);
                     filesToAttach = new ArrayList<>();
 
-                    int index = 0;
+                    File tempDir = new File(
+                            System.getProperty("java.io.tmpdir"),
+                            "chatcyber_attachments_" + UUID.randomUUID()
+                    );
+                    tempDir.mkdirs();
+
                     for (File sourceFile : attachmentsSnapshot) {
-                        File encryptedFile = new File(
-                                System.getProperty("java.io.tmpdir"),
-                                sourceFile.getName() + "_" + System.nanoTime() + "_" + index + ".ibe"
-                        );
+                        File encryptedFile = createEncryptedTempFile(tempDir, sourceFile);
                         cipher.encryptFile(sourceFile, encryptedFile, to);
                         filesToAttach.add(encryptedFile);
                         tempEncryptedFiles.add(encryptedFile);
-                        index++;
                     }
                 }
 
@@ -276,6 +278,14 @@ public class ComposePanel extends JPanel {
                         tempFile.delete();
                     }
                 }
+
+                if (!tempEncryptedFiles.isEmpty()) {
+                    File parentDir = tempEncryptedFiles.get(0).getParentFile();
+                    if (parentDir != null && parentDir.exists()) {
+                        parentDir.delete();
+                    }
+                }
+
                 SwingUtilities.invokeLater(() -> {
                     btnSend.setEnabled(true);
                     progressBar.setVisible(false);
@@ -337,6 +347,19 @@ public class ComposePanel extends JPanel {
         }
 
         tfAttachment.setText(summary.toString());
+    }
+
+    private File createEncryptedTempFile(File tempDir, File sourceFile) {
+        String baseName = sourceFile.getName();
+        File candidate = new File(tempDir, baseName + ".ibe");
+        int counter = 1;
+
+        while (candidate.exists()) {
+            candidate = new File(tempDir, baseName + " (" + counter + ").ibe");
+            counter++;
+        }
+
+        return candidate;
     }
 
     private String formatSize(long bytes) {
