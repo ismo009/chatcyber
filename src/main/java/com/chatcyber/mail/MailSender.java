@@ -1,6 +1,8 @@
 package com.chatcyber.mail;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import javax.activation.DataHandler;
@@ -26,7 +28,7 @@ public class MailSender {
         this.config = config;
     }
 
-    public void sendEmail(String to, String subject, String bodyText, File attachment) throws MessagingException {
+    public void sendEmail(String to, String subject, String bodyText, List<File> attachments) throws MessagingException {
         // Configuration des propriétés SMTP
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
@@ -54,12 +56,17 @@ public class MailSender {
         Multipart multipart = new MimeMultipart();
         multipart.addBodyPart(textPart);
 
-        if (attachment != null && attachment.exists()) {
-            MimeBodyPart attachmentPart = new MimeBodyPart();
-            FileDataSource source = new FileDataSource(attachment);
-            attachmentPart.setDataHandler(new DataHandler(source));
-            attachmentPart.setFileName(attachment.getName());
-            multipart.addBodyPart(attachmentPart);
+        if (attachments != null) {
+            for (File attachment : attachments) {
+                if (attachment == null || !attachment.exists()) {
+                    continue;
+                }
+                MimeBodyPart attachmentPart = new MimeBodyPart();
+                FileDataSource source = new FileDataSource(attachment);
+                attachmentPart.setDataHandler(new DataHandler(source));
+                attachmentPart.setFileName(attachment.getName());
+                multipart.addBodyPart(attachmentPart);
+            }
         }
 
         message.setContent(multipart);
@@ -68,8 +75,16 @@ public class MailSender {
         System.out.println("[Mail] Email envoyé avec succès à " + to);
     }
 
+    public void sendEmail(String to, String subject, String bodyText, File attachment) throws MessagingException {
+        List<File> attachments = new ArrayList<>();
+        if (attachment != null) {
+            attachments.add(attachment);
+        }
+        sendEmail(to, subject, bodyText, attachments);
+    }
+
     public void sendEmail(String to, String subject, String bodyText) throws MessagingException {
-        sendEmail(to, subject, bodyText, null);
+        sendEmail(to, subject, bodyText, new ArrayList<>());
     }
 
     public boolean testConnection() {

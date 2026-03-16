@@ -397,7 +397,7 @@ public class InboxPanel extends JPanel {
 
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Enregistrer le fichier dechiffre");
-        String originalName = attachInfo.getFileName().replaceAll("\\.ibe$", "");
+        String originalName = normalizeLegacyEncryptedName(attachInfo.getFileName().replaceAll("(?i)\\.ibe$", ""));
         chooser.setSelectedFile(new File(originalName));
         int result = chooser.showSaveDialog(this);
 
@@ -457,7 +457,7 @@ public class InboxPanel extends JPanel {
 
         JFileChooser saveChooser = new JFileChooser();
         saveChooser.setDialogTitle("Enregistrer le fichier dechiffre");
-        String suggestedName = encryptedFile.getName().replaceAll("\\.ibe$", "");
+        String suggestedName = normalizeLegacyEncryptedName(encryptedFile.getName().replaceAll("(?i)\\.ibe$", ""));
         saveChooser.setSelectedFile(new File(encryptedFile.getParent(), suggestedName));
         int saveResult = saveChooser.showSaveDialog(this);
         if (saveResult != JFileChooser.APPROVE_OPTION) return;
@@ -486,5 +486,18 @@ public class InboxPanel extends JPanel {
                 mainFrame.updateStatus("\u2717 Erreur de dechiffrement.");
             }
         }).start();
+    }
+
+    /**
+     * Nettoie les anciens suffixes techniques de nommage (ex: fichier.ext_1712345678901_0)
+     * tout en conservant les noms standards non concernés.
+     */
+    private String normalizeLegacyEncryptedName(String name) {
+        if (name == null) {
+            return "fichier_dechiffre";
+        }
+        return name
+                .replaceFirst("_(\\d{10,})_(\\d+)( \\\\(\\d+\\\\))?$", "")
+                .replaceFirst("_(\\d{10,})$", "");
     }
 }

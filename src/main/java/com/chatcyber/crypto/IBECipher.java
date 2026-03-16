@@ -46,14 +46,6 @@ public class IBECipher {
         }
     }
 
-    /**
-     * Déchiffre un fichier avec la clé privée IBE de l'utilisateur.
-     *
-     * @param inputFile       Fichier chiffré (.ibe)
-     * @param outputDir       Répertoire de sortie pour le fichier déchiffré
-     * @param privateKeyBytes Clé privée IBE de l'utilisateur (dID sérialisée)
-     * @return Le fichier déchiffré
-     */
     public File decryptFile(File inputFile, File outputDir, byte[] privateKeyBytes) throws Exception {
         String originalName;
         byte[] ciphertext;
@@ -64,6 +56,7 @@ public class IBECipher {
         }
 
         byte[] plaintext = decrypt(ciphertext, privateKeyBytes);
+        originalName = normalizeLegacyEncryptedName(originalName);
 
         if (!outputDir.exists()) {
             outputDir.mkdirs();
@@ -199,5 +192,14 @@ public class IBECipher {
         } catch (IOException e) {
             throw new RuntimeException("Erreur lors du chargement des paramètres de pairing", e);
         }
+    }
+
+    private String normalizeLegacyEncryptedName(String name) {
+        if (name == null || name.isBlank()) {
+            return "fichier_dechiffre";
+        }
+        return name
+                .replaceFirst("_(\\d{10,})_(\\d+)( \\\\(\\d+\\\\))?$", "")
+                .replaceFirst("_(\\d{10,})$", "");
     }
 }
