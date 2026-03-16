@@ -1,20 +1,23 @@
 package com.chatcyber.crypto;
 
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Serveur réseau de l'Autorité de Confiance (Trust Authority).
- *
- * Écoute les connexions TCP des clients mail et traite les requêtes :
- *   - GET_PARAMS     → Retourne les paramètres publics du système IBE
- *   - EXTRACT_KEY id → Retourne la clé privée pour l'identité (email) spécifiée
- *
- * Protocole :
- *   Client → Serveur : commande (UTF string via DataOutputStream)
- *   Serveur → Client : longueur des données (int) + données (bytes)
- */
+import javax.crypto.Cipher;
+
 public class TrustAuthorityServer {
 
     private final TrustAuthority trustAuthority;
@@ -24,7 +27,7 @@ public class TrustAuthorityServer {
     private volatile boolean running;
     private MessageListener listener;
 
-    /** Interface pour recevoir les messages de log du serveur */
+    /**Interface pour recevoir les messages de log du serveur*/
     public interface MessageListener {
         void onMessage(String message);
     }
@@ -51,15 +54,15 @@ public class TrustAuthorityServer {
      * Initialise le système IBE et démarre le serveur.
      */
     public void start() throws IOException {
-        log("Initialisation du système IBE (Setup de Boneh-Franklin)...");
+        log("Initialisation du système IBE (Setup Boneh-Franklin)");
         trustAuthority.setup();
-        log("Système IBE initialisé avec succès.");
+        log("Système IBE initialisé avec succès");
 
         serverSocket = new ServerSocket(port);
         running = true;
-        log("Serveur démarré sur le port " + port + " — En attente de connexions...");
+        log("Serveur démarré sur le port " + port + " — En attente de clienrs");
 
-        // Thread principale d'écoute
+        //Thread principale d'écoute
         executor.submit(() -> {
             while (running) {
                 try {
@@ -76,9 +79,6 @@ public class TrustAuthorityServer {
         });
     }
 
-    /**
-     * Traite une requête d'un client.
-     */
     private void handleClient(Socket socket) {
         try (DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
              DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()))) {
@@ -92,7 +92,7 @@ public class TrustAuthorityServer {
                     break;
                 case "EXTRACT_KEY":
                     String identity = command.substring("EXTRACT_KEY ".length()).trim();
-                    handleExtractKey(dos, identity);
+                    handleExtractKey(dis, dos, identity);
                     break;
                 default:
                     log("Commande inconnue : " + command);
@@ -110,13 +110,11 @@ public class TrustAuthorityServer {
         }
     }
 
-    /**
-     * Envoie les paramètres publics du système au client.
-     */
+    //Envoie les paramètres publics du système au client ; C'est des parametres publics, pas besoin de protéger
     private void handleGetParams(DataOutputStream dos) throws IOException {
         SystemParameters params = trustAuthority.getPublicParameters();
 
-        // Sérialiser l'objet SystemParameters
+        //Sérialiser l'objet SystemParameters
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
         oos.writeObject(params);
@@ -130,22 +128,38 @@ public class TrustAuthorityServer {
         log("Paramètres publics envoyés (" + data.length + " octets).");
     }
 
-    /**
-     * Extrait et envoie la clé privée pour l'identité demandée.
-     */
-    private void handleExtractKey(DataOutputStream dos, String identity) throws IOException {
-        byte[] privateKey = trustAuthority.extractPrivateKey(identity);
+    //Extrait clée privée IBE, la chiffre avec RSA2048 et l'envoie
+    private void handleExtractKey(DataInputStream dis, DataOutputStream dos, String identity)
+            throws Exception {
+        //Lecture clée publique RSA Client
+        int rsaPubLen = dis.readInt();
+        if (rsaPubLen <= 0 || rsaPubLen > 8192) {
+            dos.writeInt(-1);
+            dos.flush();
+            log("Clé publique RSA invalide pour : " + identity);
+            return;
+        }
+        byte[] rsaPubBytes = new byte[rsaPubLen];
+        dis.readFully(rsaPubBytes);
 
-        dos.writeInt(privateKey.length);
-        dos.write(privateKey);
+        PublicKey rsaPublicKey = KeyFactory.getInstance("RSA")
+                .generatePublic(new X509EncodedKeySpec(rsaPubBytes));
+
+        //Extraction private KEY IBE
+        byte[] ibePrivateKey = trustAuthority.extractPrivateKey(identity);
+
+        //Chiffrement clée IBE via RSA
+        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        rsaCipher.init(Cipher.ENCRYPT_MODE, rsaPublicKey);
+        byte[] encryptedKey = rsaCipher.doFinal(ibePrivateKey);
+
+        dos.writeInt(encryptedKey.length);
+        dos.write(encryptedKey);
         dos.flush();
 
-        log("Clé privée envoyée pour : " + identity + " (" + privateKey.length + " octets).");
+        log("Clé privée IBE chiffrée (RSA-OAEP) envoyée pour : " + identity + " (" + encryptedKey.length + " octets).");
     }
 
-    /**
-     * Parse le type de commande.
-     */
     private String parseCommand(String command) {
         if (command == null) return "";
         if (command.equals("GET_PARAMS")) return "GET_PARAMS";
@@ -153,9 +167,6 @@ public class TrustAuthorityServer {
         return command;
     }
 
-    /**
-     * Arrête le serveur.
-     */
     public void stop() {
         running = false;
         try {

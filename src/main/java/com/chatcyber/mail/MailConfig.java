@@ -1,37 +1,30 @@
 package com.chatcyber.mail;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.Properties;
 
-/**
- * Configuration de connexion email (SMTP pour l'envoi, IMAP pour la réception).
- * Pré-configuré pour Gmail par défaut.
- *
- * Pour Gmail, il faut créer un "Mot de passe d'application" :
- * https://support.google.com/mail/answer/185833?hl=fr
- */
 public class MailConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // --- SMTP (envoi) ---
+    //SMTP Defaut
     private String smtpHost = "smtp.gmail.com";
     private int smtpPort = 587;
     private boolean smtpStartTls = true;
 
-    // --- IMAP (réception) ---
+    //IMAP Defaut
     private String imapHost = "imap.gmail.com";
     private int imapPort = 993;
     private boolean imapSsl = true;
 
-    // --- Identifiants ---
     private String email = "";
-    private String password = "";  // Mot de passe d'application pour Gmail
+    private String password = "";
 
-    // --- Autorité de Confiance ---
     private String taHost = "localhost";
     private int taPort = 7777;
-
-    // ==================== GETTERS / SETTERS ====================
 
     public String getSmtpHost() { return smtpHost; }
     public void setSmtpHost(String smtpHost) { this.smtpHost = smtpHost; }
@@ -63,11 +56,7 @@ public class MailConfig implements Serializable {
     public int getTaPort() { return taPort; }
     public void setTaPort(int taPort) { this.taPort = taPort; }
 
-    // ==================== PERSISTANCE ====================
-
-    /**
-     * Convertit la configuration en Properties Java.
-     */
+    //Pour sauvegarder la config
     public Properties toProperties() {
         Properties props = new Properties();
         props.setProperty("smtp.host", smtpHost);
@@ -83,9 +72,7 @@ public class MailConfig implements Serializable {
         return props;
     }
 
-    /**
-     * Crée une configuration depuis des Properties Java.
-     */
+    //Convertit une Properties en MailConfig
     public static MailConfig fromProperties(Properties props) {
         MailConfig config = new MailConfig();
         config.smtpHost = props.getProperty("smtp.host", "smtp.gmail.com");
@@ -101,9 +88,7 @@ public class MailConfig implements Serializable {
         return config;
     }
 
-    /**
-     * Sauvegarde la configuration dans un fichier properties.
-     */
+    //Sauvegarde la config dans un fichier properties
     public void save(String path) throws IOException {
         File parent = new File(path).getParentFile();
         if (parent != null && !parent.exists()) {
