@@ -1,20 +1,25 @@
 package com.chatcyber.mail;
 
-import javax.mail.*;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeUtility;
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
-/**
- * Réception de mails via IMAP avec support des pièces jointes.
- * Configuré par défaut pour Gmail (IMAPS + SSL).
- *
- * Fonctionnalités :
- * - Récupération des messages de la boîte de réception
- * - Parsing des messages MIME multipart
- * - Téléchargement des pièces jointes
- */
+import javax.mail.Address;
+import javax.mail.BodyPart;
+import javax.mail.FetchProfile;
+import javax.mail.Folder;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Multipart;
+import javax.mail.Part;
+import javax.mail.Session;
+import javax.mail.Store;
+import javax.mail.internet.MimeUtility;
+
 public class MailReceiver {
 
     private final MailConfig config;
@@ -25,9 +30,7 @@ public class MailReceiver {
         this.config = config;
     }
 
-    /**
-     * Ouvre une connexion au serveur IMAP.
-     */
+    //Connexion IMAP
     public void connect() throws MessagingException {
         Properties props = new Properties();
         props.put("mail.store.protocol", "imaps");
@@ -46,9 +49,6 @@ public class MailReceiver {
         System.out.println("[Mail] Connecté à la boîte de réception (" + inbox.getMessageCount() + " messages).");
     }
 
-    /**
-     * Ferme la connexion au serveur IMAP.
-     */
     public void disconnect() {
         try {
             if (inbox != null && inbox.isOpen()) {
@@ -62,12 +62,6 @@ public class MailReceiver {
         }
     }
 
-    /**
-     * Récupère les N derniers messages de la boîte de réception.
-     *
-     * @param maxMessages Nombre maximum de messages à récupérer
-     * @return Liste de messages convertis en EmailMessage (DTO)
-     */
     public List<EmailMessage> fetchMessages(int maxMessages) throws MessagingException {
         if (inbox == null || !inbox.isOpen()) {
             connect();
@@ -77,7 +71,6 @@ public class MailReceiver {
         int start = Math.max(1, totalMessages - maxMessages + 1);
 
         Message[] messages = inbox.getMessages(start, totalMessages);
-        // Pré-chargement des en-têtes pour de meilleures performances
         FetchProfile fp = new FetchProfile();
         fp.add(FetchProfile.Item.ENVELOPE);
         fp.add(FetchProfile.Item.CONTENT_INFO);
@@ -96,14 +89,6 @@ public class MailReceiver {
         return result;
     }
 
-    /**
-     * Télécharge une pièce jointe d'un message.
-     *
-     * @param messageNumber Numéro du message dans la boîte
-     * @param partIndex     Index de la pièce jointe dans le message
-     * @param destDir       Répertoire de destination
-     * @return Le fichier téléchargé
-     */
     public File downloadAttachment(int messageNumber, int partIndex, File destDir) throws Exception {
         if (inbox == null || !inbox.isOpen()) {
             connect();
@@ -145,17 +130,13 @@ public class MailReceiver {
             }
         }
 
-        throw new IOException("Pièce jointe introuvable (message=" + messageNumber + ", index=" + partIndex + ")");
+        throw new IOException("Piece jointe echec (message=" + messageNumber + ", i=" + partIndex + ")");
     }
 
-    /**
-     * Convertit un Message JavaMail en EmailMessage (DTO local).
-     */
     private EmailMessage convertMessage(Message message) throws Exception {
         EmailMessage em = new EmailMessage();
         em.setMessageNumber(message.getMessageNumber());
 
-        // Expéditeur
         Address[] fromAddresses = message.getFrom();
         if (fromAddresses != null && fromAddresses.length > 0) {
             em.setFrom(fromAddresses[0].toString());
@@ -163,19 +144,15 @@ public class MailReceiver {
             em.setFrom("(inconnu)");
         }
 
-        // Destinataire
         Address[] toAddresses = message.getRecipients(Message.RecipientType.TO);
         if (toAddresses != null && toAddresses.length > 0) {
             em.setTo(toAddresses[0].toString());
         }
 
-        // Objet
         em.setSubject(message.getSubject() != null ? message.getSubject() : "(sans objet)");
 
-        // Date d'envoi
         em.setSentDate(message.getSentDate());
 
-        // Corps et pièces jointes
         String bodyText = "";
         List<EmailMessage.AttachmentInfo> attachments = new ArrayList<>();
         Object content = message.getContent();
@@ -194,9 +171,7 @@ public class MailReceiver {
         return em;
     }
 
-    /**
-     * Extrait le texte brut d'un message multipart.
-     */
+//Extract le texte depuis un multipart
     private String extractTextFromMultipart(Multipart multipart) throws Exception {
         StringBuilder text = new StringBuilder();
 
@@ -210,7 +185,6 @@ public class MailReceiver {
             } else if (bodyPart.isMimeType("text/html") && text.length() == 0 &&
                     (bodyPart.getDisposition() == null ||
                      !Part.ATTACHMENT.equalsIgnoreCase(bodyPart.getDisposition()))) {
-                // Fallback : utiliser le HTML si pas de texte brut
                 text.append("[HTML] ").append(bodyPart.getContent().toString());
             } else if (bodyPart.getContent() instanceof Multipart) {
                 text.append(extractTextFromMultipart((Multipart) bodyPart.getContent()));
@@ -220,9 +194,7 @@ public class MailReceiver {
         return text.toString();
     }
 
-    /**
-     * Extrait les informations sur les pièces jointes d'un message multipart.
-     */
+
     private void extractAttachments(Multipart multipart, List<EmailMessage.AttachmentInfo> attachments) throws Exception {
         int attachIndex = 0;
 
@@ -244,9 +216,7 @@ public class MailReceiver {
         }
     }
 
-    /**
-     * Décode le nom d'un fichier joint (gestion de l'encodage MIME).
-     */
+
     private String decodeFileName(String fileName) {
         if (fileName == null) return "piece_jointe";
         try {

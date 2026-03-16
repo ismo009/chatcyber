@@ -11,6 +11,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -24,6 +25,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
+import com.chatcyber.DebugFlags;
 import com.chatcyber.crypto.TrustAuthorityServer;
 
 /**
@@ -42,15 +44,20 @@ public class TrustAuthorityFrame extends JFrame {
     private static final Color RED_BRIGHT   = new Color(248, 113, 113);
     private static final Color BLUE_ACCENT  = new Color(96, 165, 250);
 
+        /** Flag de debug : expose la clé privée IBE en clair dans l'UI (voir DebugFlags). */
+        private static final boolean DEBUG_EXPOSE_IBE_PRIVATE_KEY = DebugFlags.EXPOSE_IBE_PRIVATE_KEY;
+
     private final int port;
     private TrustAuthorityServer server;
 
     private JTextArea taLog;
+    private JTextArea taIbePrivateKeyPlaintext;
     private JButton btnStart;
     private JButton btnStop;
     private JLabel lblStatus;
     private JTextField tfPort;
     private JLabel lblConnections;
+    private JLabel lblIbePrivateKeyIdentity;
     private int connectionCount;
 
     public TrustAuthorityFrame(int port) {
@@ -180,7 +187,52 @@ public class TrustAuthorityFrame extends JFrame {
         logScroll.getViewport().setBackground(DARK_BG);
         logScroll.getVerticalScrollBar().setBackground(DARK_CARD);
 
-        add(logScroll, BorderLayout.CENTER);
+        JPanel centerWrapper = new JPanel(new BorderLayout());
+        centerWrapper.setBackground(DARK_BG);
+        centerWrapper.add(logScroll, BorderLayout.CENTER);
+
+        if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
+            JPanel debugKeyPanel = new JPanel(new BorderLayout(0, 8));
+            debugKeyPanel.setBackground(DARK_CARD);
+            debugKeyPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, DARK_BORDER),
+                BorderFactory.createEmptyBorder(10, 16, 10, 16)
+            ));
+
+            JPanel debugHeader = new JPanel(new BorderLayout());
+            debugHeader.setOpaque(false);
+
+            JLabel keyTitle = new JLabel("Clé privée IBE (en clair) — Base64");
+            keyTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            keyTitle.setForeground(DARK_TEXT);
+            debugHeader.add(keyTitle, BorderLayout.WEST);
+
+            lblIbePrivateKeyIdentity = new JLabel("Identité : —");
+            lblIbePrivateKeyIdentity.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            lblIbePrivateKeyIdentity.setForeground(DARK_MUTED);
+            debugHeader.add(lblIbePrivateKeyIdentity, BorderLayout.EAST);
+
+            debugKeyPanel.add(debugHeader, BorderLayout.NORTH);
+
+            taIbePrivateKeyPlaintext = new JTextArea(3, 20);
+            taIbePrivateKeyPlaintext.setEditable(false);
+            taIbePrivateKeyPlaintext.setFont(new Font("Consolas", Font.PLAIN, 12));
+            taIbePrivateKeyPlaintext.setLineWrap(true);
+            taIbePrivateKeyPlaintext.setWrapStyleWord(false);
+            taIbePrivateKeyPlaintext.setBackground(DARK_BG);
+            taIbePrivateKeyPlaintext.setForeground(DARK_TEXT);
+            taIbePrivateKeyPlaintext.setCaretColor(DARK_TEXT);
+            taIbePrivateKeyPlaintext.setMargin(new Insets(8, 10, 8, 10));
+
+            JScrollPane keyScroll = new JScrollPane(taIbePrivateKeyPlaintext);
+            keyScroll.setBorder(BorderFactory.createLineBorder(DARK_BORDER, 1));
+            keyScroll.getViewport().setBackground(DARK_BG);
+            debugKeyPanel.add(keyScroll, BorderLayout.CENTER);
+
+            centerWrapper.add(debugKeyPanel, BorderLayout.SOUTH);
+        }
+
+        add(centerWrapper, BorderLayout.CENTER);
 
         // ── Footer ──
         JPanel footer = new JPanel(new BorderLayout());
@@ -256,6 +308,12 @@ public class TrustAuthorityFrame extends JFrame {
                         lblConnections.setText("Connexions : " + connectionCount);
                     }
                 }));
+
+                if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
+                    server.setIbePrivateKeyListener((identity, ibePrivateKey) -> SwingUtilities.invokeLater(() -> {
+                        updateIbePrivateKeyPlaintext(identity, ibePrivateKey);
+                    }));
+                }
                 server.start();
 
                 SwingUtilities.invokeLater(() -> {
@@ -279,6 +337,15 @@ public class TrustAuthorityFrame extends JFrame {
                 });
             }
         }).start();
+    }
+
+    private void updateIbePrivateKeyPlaintext(String identity, byte[] ibePrivateKey) {
+        if (taIbePrivateKeyPlaintext == null || lblIbePrivateKeyIdentity == null) {
+            return;
+        }
+        lblIbePrivateKeyIdentity.setText("Identité : " + identity);
+        taIbePrivateKeyPlaintext.setText(Base64.getEncoder().encodeToString(ibePrivateKey));
+        taIbePrivateKeyPlaintext.setCaretPosition(0);
     }
 
     private void stopServer() {

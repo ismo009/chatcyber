@@ -25,11 +25,6 @@ public class EmailMessage implements Serializable {
         this.attachments = new ArrayList<>();
     }
 
-    // ==================== INNER CLASS ====================
-
-    /**
-     * Informations sur une pièce jointe.
-     */
     public static class AttachmentInfo implements Serializable {
         private static final long serialVersionUID = 1L;
 
@@ -47,9 +42,7 @@ public class EmailMessage implements Serializable {
         public int getPartIndex() { return partIndex; }
         public long getSize() { return size; }
 
-        /**
-         * Vérifie si cette pièce jointe est un fichier chiffré IBE.
-         */
+ 
         public boolean isEncrypted() {
             return fileName != null && fileName.toLowerCase().endsWith(".ibe");
         }
@@ -66,8 +59,6 @@ public class EmailMessage implements Serializable {
             return String.format("%.1f Mo", bytes / (1024.0 * 1024));
         }
     }
-
-    // ==================== GETTERS / SETTERS ====================
 
     public int getMessageNumber() { return messageNumber; }
     public void setMessageNumber(int messageNumber) { this.messageNumber = messageNumber; }

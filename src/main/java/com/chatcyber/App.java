@@ -7,9 +7,6 @@ import com.chatcyber.gui.MainFrame;
 import com.chatcyber.gui.UITheme;
 import com.formdev.flatlaf.FlatLightLaf;
 
-/**
- * Point d'entree de l'application client ChatCyber.
- */
 public class App {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {

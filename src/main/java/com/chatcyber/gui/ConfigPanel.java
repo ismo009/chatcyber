@@ -8,6 +8,7 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.Base64;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -17,9 +18,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
+import com.chatcyber.DebugFlags;
 import com.chatcyber.crypto.SystemParameters;
 import com.chatcyber.crypto.TrustAuthorityClient;
 import com.chatcyber.mail.MailConfig;
@@ -28,6 +31,9 @@ import com.chatcyber.mail.MailConfig;
  * Panneau de configuration : Email, Autorite de Confiance et etat IBE.
  */
 public class ConfigPanel extends JPanel {
+
+    /** Flag de debug : affiche la clé privée IBE en clair dans l'UI (voir DebugFlags). */
+    private static final boolean DEBUG_EXPOSE_IBE_PRIVATE_KEY = DebugFlags.EXPOSE_IBE_PRIVATE_KEY;
 
     private final MainFrame mainFrame;
 
@@ -43,6 +49,9 @@ public class ConfigPanel extends JPanel {
 
     private JLabel lblIbeStatus;
     private JLabel lblKeyStatus;
+
+    private JTextArea taIbePrivateKeyDebug;
+    private JLabel lblIbePrivateKeyIdentity;
 
     public ConfigPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
@@ -80,6 +89,12 @@ public class ConfigPanel extends JPanel {
         // ── Etat IBE ──
         content.add(createStatusCard());
         content.add(Box.createVerticalStrut(12));
+
+        // ── Debug : clé privée IBE en clair ──
+        if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
+            content.add(createIbePrivateKeyDebugCard());
+            content.add(Box.createVerticalStrut(12));
+        }
 
         // ── Bouton sauvegarder ──
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -237,6 +252,44 @@ public class ConfigPanel extends JPanel {
         return card;
     }
 
+    private JPanel createIbePrivateKeyDebugCard() {
+        JPanel card = UITheme.card("Debug — Cle privee IBE (Base64)");
+        card.setLayout(new BorderLayout(0, 8));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        header.setOpaque(false);
+        header.add(UITheme.descriptionLabel("Affichage en clair pour verifier que le chiffrement RSA n'altere pas la cle."));
+        card.add(header, BorderLayout.NORTH);
+
+        JPanel infoLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        infoLine.setOpaque(false);
+        infoLine.add(UITheme.formLabel("Identite"));
+        lblIbePrivateKeyIdentity = UITheme.descriptionLabel("—");
+        infoLine.add(lblIbePrivateKeyIdentity);
+        card.add(infoLine, BorderLayout.CENTER);
+
+        taIbePrivateKeyDebug = new JTextArea(4, 20);
+        taIbePrivateKeyDebug.setEditable(false);
+        taIbePrivateKeyDebug.setFont(UITheme.FONT_MONO);
+        taIbePrivateKeyDebug.setForeground(UITheme.TEXT_PRIMARY);
+        taIbePrivateKeyDebug.setBackground(UITheme.BG_CARD);
+        taIbePrivateKeyDebug.setLineWrap(true);
+        taIbePrivateKeyDebug.setWrapStyleWord(true);
+        taIbePrivateKeyDebug.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(UITheme.BORDER, 1),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
+
+        JScrollPane scroll = new JScrollPane(taIbePrivateKeyDebug);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(UITheme.BG_CARD);
+        card.add(scroll, BorderLayout.SOUTH);
+
+        return card;
+    }
+
     // ==================== ACTIONS ====================
 
     private void loadConfig() {
@@ -312,6 +365,9 @@ public class ConfigPanel extends JPanel {
 
                 SwingUtilities.invokeLater(() -> {
                     updateStatusBadge(lblKeyStatus, true, "OK - Disponible");
+                    if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
+                        updateIbePrivateKeyDebug(email, key);
+                    }
                     mainFrame.showInfo("Succes",
                             "Cle privee IBE recue pour : " + email + "\n(" + key.length + " octets)");
                 });
@@ -321,6 +377,15 @@ public class ConfigPanel extends JPanel {
                 mainFrame.updateStatus("Erreur d'extraction de la cle privee.");
             }
         }).start();
+    }
+
+    private void updateIbePrivateKeyDebug(String identity, byte[] ibePrivateKey) {
+        if (taIbePrivateKeyDebug == null || lblIbePrivateKeyIdentity == null) {
+            return;
+        }
+        lblIbePrivateKeyIdentity.setText(identity);
+        taIbePrivateKeyDebug.setText(Base64.getEncoder().encodeToString(ibePrivateKey));
+        taIbePrivateKeyDebug.setCaretPosition(0);
     }
 
     private void launchTrustAuthority() {

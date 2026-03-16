@@ -1,46 +1,54 @@
 package com.chatcyber.crypto;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.net.Socket;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
 
-/**
- * Client pour communiquer avec le serveur de l'Autorité de Confiance.
- *
- * Permet aux clients mail de :
- *   1. Récupérer les paramètres publics du système IBE (GET_PARAMS)
- *   2. Demander l'extraction de leur clé privée (EXTRACT_KEY email)
- */
+import javax.crypto.Cipher;
+
 public class TrustAuthorityClient {
 
     private final String host;
     private final int port;
 
-    /**
-     * @param host Adresse du serveur de l'AC (ex: "localhost", "192.168.1.10")
-     * @param port Port du serveur de l'AC (ex: 7777)
-     */
     public TrustAuthorityClient(String host, int port) {
-        this.host = host;
+        this.host = host; 
         this.port = port;
     }
 
-    /**
-     * Récupère les paramètres publics du système IBE depuis l'Autorité de Confiance.
-     *
-     * @return Les paramètres publics (pairingParams, P, Ppub)
-     * @throws IOException          En cas d'erreur réseau
-     * @throws ClassNotFoundException Si la désérialisation échoue
-     */
+    public String getHost() { return host; }
+    public int getPort() { return port; }
+
+    //Obtenor paametres publics
     public SystemParameters getParameters() throws IOException, ClassNotFoundException {
+        return requestSystemParameters("GET_PARAMS");
+    }
+
+    /**
+     * Récupère les informations publiques nécessaires pour chiffrer un mail vers une identité.
+     * (Même contenu que GET_PARAMS, mais le serveur logge explicitement le destinataire.)
+     */
+    public SystemParameters getEncryptionInfo(String recipientEmail) throws IOException, ClassNotFoundException {
+        String normalized = recipientEmail == null ? "" : recipientEmail.toLowerCase().trim();
+        return requestSystemParameters("GET_ENCRYPTION_INFO " + normalized);
+    }
+
+    private SystemParameters requestSystemParameters(String command) throws IOException, ClassNotFoundException {
         try (Socket socket = new Socket(host, port);
              DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
              DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()))) {
 
-            // Envoyer la commande
-            dos.writeUTF("GET_PARAMS");
+            dos.writeUTF(command);
             dos.flush();
 
-            // Recevoir la réponse
             int length = dis.readInt();
             if (length < 0) {
                 throw new IOException("Le serveur a retourné une erreur");
@@ -49,47 +57,44 @@ public class TrustAuthorityClient {
             byte[] data = new byte[length];
             dis.readFully(data);
 
-            // Désérialiser les paramètres
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             ObjectInputStream ois = new ObjectInputStream(bais);
             return (SystemParameters) ois.readObject();
         }
     }
 
-    /**
-     * Demande l'extraction de la clé privée pour une identité (adresse email).
-     *
-     * @param identity L'adresse email pour laquelle extraire la clé privée
-     * @return La clé privée sérialisée (bytes de l'élément dID ∈ G1)
-     * @throws IOException En cas d'erreur réseau
-     */
-    public byte[] extractKey(String identity) throws IOException {
+    public byte[] extractKey(String identity) throws Exception {
+        //Génération clée RSA éphémère
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair ephemeralKeyPair = kpg.generateKeyPair();
+        PrivateKey rsaPrivateKey = ephemeralKeyPair.getPrivate();
+        byte[] rsaPublicKeyBytes = ephemeralKeyPair.getPublic().getEncoded();
+
         try (Socket socket = new Socket(host, port);
              DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
              DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()))) {
 
-            // Envoyer la commande avec l'identité
+            //En premier commande puis la clée pi=ublique
             dos.writeUTF("EXTRACT_KEY " + identity.toLowerCase().trim());
+            dos.writeInt(rsaPublicKeyBytes.length);
+            dos.write(rsaPublicKeyBytes);
             dos.flush();
 
-            // Recevoir la clé privée
+            //Clé IBE privée chiffrée
             int length = dis.readInt();
             if (length < 0) {
                 throw new IOException("Le serveur a retourné une erreur pour l'extraction de clé");
             }
+            byte[] encryptedIbeKey = new byte[length];
+            dis.readFully(encryptedIbeKey);
 
-            byte[] privateKey = new byte[length];
-            dis.readFully(privateKey);
-
-            return privateKey;
+            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+            rsaCipher.init(Cipher.DECRYPT_MODE, rsaPrivateKey);
+            return rsaCipher.doFinal(encryptedIbeKey);
         }
     }
 
-    /**
-     * Teste la connectivité avec le serveur de l'AC.
-     *
-     * @return true si le serveur est joignable
-     */
     public boolean testConnection() {
         try (Socket socket = new Socket(host, port)) {
             return true;
@@ -98,6 +103,5 @@ public class TrustAuthorityClient {
         }
     }
 
-    public String getHost() { return host; }
-    public int getPort() { return port; }
+
 }
