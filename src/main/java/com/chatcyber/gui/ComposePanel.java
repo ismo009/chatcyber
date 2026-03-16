@@ -8,6 +8,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -38,7 +40,7 @@ public class ComposePanel extends JPanel {
     private JTextField tfSubject;
     private JTextArea taBody;
     private JTextField tfAttachment;
-    private File selectedFile;
+    private final List<File> selectedFiles = new ArrayList<>();
     private JCheckBox cbEncrypt;
     private JButton btnSend;
     private JProgressBar progressBar;
@@ -133,9 +135,8 @@ public class ComposePanel extends JPanel {
         btnClear.setToolTipText("Retirer la piece jointe");
         btnClear.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         btnClear.addActionListener(e -> {
-            selectedFile = null;
-            tfAttachment.setText("Aucun fichier selectionne");
-            tfAttachment.setForeground(UITheme.TEXT_MUTED);
+            selectedFiles.clear();
+            refreshAttachmentField();
         });
 
         cbEncrypt = new JCheckBox("Chiffrer avec IBE (identite du destinataire)");
@@ -185,11 +186,18 @@ public class ComposePanel extends JPanel {
     private void browseFile() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Selectionner une piece jointe");
+        chooser.setMultiSelectionEnabled(true);
         int result = chooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
-            selectedFile = chooser.getSelectedFile();
-            tfAttachment.setText(selectedFile.getName() + " (" + formatSize(selectedFile.length()) + ")");
-            tfAttachment.setForeground(UITheme.TEXT_PRIMARY);
+            File[] pickedFiles = chooser.getSelectedFiles();
+            if (pickedFiles != null && pickedFiles.length > 0) {
+                for (File file : pickedFiles) {
+                    addAttachmentIfMissing(file);
+                }
+            } else {
+                addAttachmentIfMissing(chooser.getSelectedFile());
+            }
+            refreshAttachmentField();
         }
     }
 
@@ -207,16 +215,18 @@ public class ComposePanel extends JPanel {
             return;
         }
 
+        List<File> attachmentsSnapshot = new ArrayList<>(selectedFiles);
+
         btnSend.setEnabled(false);
         progressBar.setVisible(true);
         progressBar.setIndeterminate(true);
         mainFrame.updateStatus("Envoi en cours...");
 
         new Thread(() -> {
+            List<File> filesToAttach = attachmentsSnapshot;
+            List<File> tempEncryptedFiles = new ArrayList<>();
             try {
-                File fileToAttach = selectedFile;
-
-                if (selectedFile != null && cbEncrypt.isSelected()) {
+                if (!attachmentsSnapshot.isEmpty() && cbEncrypt.isSelected()) {
                     mainFrame.updateStatus("Recuperation des infos de chiffrement depuis l'AC...");
 
                     TrustAuthorityClient taClient = new TrustAuthorityClient(
@@ -231,17 +241,24 @@ public class ComposePanel extends JPanel {
 
                     mainFrame.updateStatus("Chiffrement de la piece jointe...");
                     IBECipher cipher = new IBECipher(params);
-                    File encryptedFile = new File(
-                            System.getProperty("java.io.tmpdir"),
-                            selectedFile.getName() + ".ibe"
-                    );
-                    cipher.encryptFile(selectedFile, encryptedFile, to);
-                    fileToAttach = encryptedFile;
+                    filesToAttach = new ArrayList<>();
+
+                    int index = 0;
+                    for (File sourceFile : attachmentsSnapshot) {
+                        File encryptedFile = new File(
+                                System.getProperty("java.io.tmpdir"),
+                                sourceFile.getName() + "_" + System.nanoTime() + "_" + index + ".ibe"
+                        );
+                        cipher.encryptFile(sourceFile, encryptedFile, to);
+                        filesToAttach.add(encryptedFile);
+                        tempEncryptedFiles.add(encryptedFile);
+                        index++;
+                    }
                 }
 
                 mainFrame.updateStatus("Envoi du mail a " + to + "...");
                 MailSender sender = new MailSender(mainFrame.getMailConfig());
-                sender.sendEmail(to, subject, body, fileToAttach);
+                sender.sendEmail(to, subject, body, filesToAttach);
 
                 SwingUtilities.invokeLater(() -> {
                     mainFrame.updateStatus("Mail envoye avec succes a " + to);
@@ -254,6 +271,11 @@ public class ComposePanel extends JPanel {
                         "Impossible d'envoyer le mail :\n" + ex.getMessage());
                 mainFrame.updateStatus("Erreur d'envoi.");
             } finally {
+                for (File tempFile : tempEncryptedFiles) {
+                    if (tempFile != null && tempFile.exists()) {
+                        tempFile.delete();
+                    }
+                }
                 SwingUtilities.invokeLater(() -> {
                     btnSend.setEnabled(true);
                     progressBar.setVisible(false);
@@ -266,9 +288,55 @@ public class ComposePanel extends JPanel {
         tfTo.setText("");
         tfSubject.setText("");
         taBody.setText("");
-        selectedFile = null;
-        tfAttachment.setText("Aucun fichier selectionne");
-        tfAttachment.setForeground(UITheme.TEXT_MUTED);
+        selectedFiles.clear();
+        refreshAttachmentField();
+    }
+
+    private void addAttachmentIfMissing(File file) {
+        if (file == null) {
+            return;
+        }
+
+        String absolutePath = file.getAbsolutePath();
+        for (File existing : selectedFiles) {
+            if (existing.getAbsolutePath().equalsIgnoreCase(absolutePath)) {
+                return;
+            }
+        }
+        selectedFiles.add(file);
+    }
+
+    private void refreshAttachmentField() {
+        if (selectedFiles.isEmpty()) {
+            tfAttachment.setText("Aucun fichier selectionne");
+            tfAttachment.setForeground(UITheme.TEXT_MUTED);
+            return;
+        }
+
+        tfAttachment.setForeground(UITheme.TEXT_PRIMARY);
+
+        if (selectedFiles.size() == 1) {
+            File onlyFile = selectedFiles.get(0);
+            tfAttachment.setText(onlyFile.getName() + " (" + formatSize(onlyFile.length()) + ")");
+            return;
+        }
+
+        StringBuilder summary = new StringBuilder();
+        summary.append(selectedFiles.size()).append(" fichiers : ");
+
+        int maxNames = Math.min(3, selectedFiles.size());
+        for (int i = 0; i < maxNames; i++) {
+            if (i > 0) {
+                summary.append(", ");
+            }
+            summary.append(selectedFiles.get(i).getName());
+        }
+
+        if (selectedFiles.size() > maxNames) {
+            summary.append("...");
+        }
+
+        tfAttachment.setText(summary.toString());
     }
 
     private String formatSize(long bytes) {
