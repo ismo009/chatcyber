@@ -7,10 +7,7 @@ import javax.swing.UIManager;
 import com.chatcyber.gui.TrustAuthorityFrame;
 import com.formdev.flatlaf.FlatDarkLaf;
 
-/**
- * Point d'entree de l'Autorite de Confiance (TA).
- * Usage : java -cp chatcyber.jar com.chatcyber.TrustAuthorityApp [port]
- */
+
 public class TrustAuthorityApp {
     public static void main(String[] args) {
         int port = 7777;
