@@ -107,6 +107,10 @@ public class TrustAuthorityServer {
                 case "GET_PARAMS":
                     handleGetParams(dos);
                     break;
+                case "GET_ENCRYPTION_INFO":
+                    String recipient = command.substring("GET_ENCRYPTION_INFO ".length()).trim();
+                    handleGetEncryptionInfo(dos, recipient);
+                    break;
                 case "EXTRACT_KEY":
                     String identity = command.substring("EXTRACT_KEY ".length()).trim();
                     handleExtractKey(dis, dos, identity);
@@ -143,6 +147,26 @@ public class TrustAuthorityServer {
         dos.flush();
 
         log("Paramètres publics envoyés (" + data.length + " octets).");
+    }
+
+    //Même chose que GET_PARAMS, mais on inclut l'identité dans la requête pour avoir un log explicite.
+    private void handleGetEncryptionInfo(DataOutputStream dos, String recipientEmail) throws IOException {
+        String normalized = recipientEmail == null ? "" : recipientEmail.toLowerCase().trim();
+        log("Infos publiques demandées pour envoyer un mail à : " + normalized);
+
+        SystemParameters params = trustAuthority.getPublicParameters();
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(params);
+        oos.flush();
+        byte[] data = baos.toByteArray();
+
+        dos.writeInt(data.length);
+        dos.write(data);
+        dos.flush();
+
+        log("Infos publiques envoyées pour : " + normalized + " (" + data.length + " octets).");
     }
 
     //Extrait clée privée IBE, la chiffre avec RSA2048 et l'envoie
@@ -188,6 +212,7 @@ public class TrustAuthorityServer {
     private String parseCommand(String command) {
         if (command == null) return "";
         if (command.equals("GET_PARAMS")) return "GET_PARAMS";
+        if (command.startsWith("GET_ENCRYPTION_INFO ")) return "GET_ENCRYPTION_INFO";
         if (command.startsWith("EXTRACT_KEY ")) return "EXTRACT_KEY";
         return command;
     }

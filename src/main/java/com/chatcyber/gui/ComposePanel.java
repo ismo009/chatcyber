@@ -23,6 +23,8 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 import com.chatcyber.crypto.IBECipher;
+import com.chatcyber.crypto.SystemParameters;
+import com.chatcyber.crypto.TrustAuthorityClient;
 import com.chatcyber.mail.MailSender;
 
 /**
@@ -204,11 +206,6 @@ public class ComposePanel extends JPanel {
             mainFrame.showError("Erreur", "Veuillez configurer vos identifiants email dans l'onglet Configuration.");
             return;
         }
-        if (selectedFile != null && cbEncrypt.isSelected() && !mainFrame.hasSystemParams()) {
-            mainFrame.showError("Erreur IBE",
-                    "Les parametres IBE ne sont pas charges.\nAllez dans Configuration > Recuperer les parametres IBE.");
-            return;
-        }
 
         btnSend.setEnabled(false);
         progressBar.setVisible(true);
@@ -220,8 +217,20 @@ public class ComposePanel extends JPanel {
                 File fileToAttach = selectedFile;
 
                 if (selectedFile != null && cbEncrypt.isSelected()) {
+                    mainFrame.updateStatus("Recuperation des infos de chiffrement depuis l'AC...");
+
+                    TrustAuthorityClient taClient = new TrustAuthorityClient(
+                        mainFrame.getMailConfig().getTaHost(),
+                        mainFrame.getMailConfig().getTaPort()
+                    );
+                    SystemParameters params = taClient.getEncryptionInfo(to);
+
+                        if (!mainFrame.hasSystemParams()) {
+                        mainFrame.setSystemParams(params);
+                        }
+
                     mainFrame.updateStatus("Chiffrement de la piece jointe...");
-                    IBECipher cipher = new IBECipher(mainFrame.getSystemParams());
+                    IBECipher cipher = new IBECipher(params);
                     File encryptedFile = new File(
                             System.getProperty("java.io.tmpdir"),
                             selectedFile.getName() + ".ibe"

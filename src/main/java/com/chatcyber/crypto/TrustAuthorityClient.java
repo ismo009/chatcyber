@@ -29,12 +29,24 @@ public class TrustAuthorityClient {
 
     //Obtenor paametres publics
     public SystemParameters getParameters() throws IOException, ClassNotFoundException {
+        return requestSystemParameters("GET_PARAMS");
+    }
+
+    /**
+     * Récupère les informations publiques nécessaires pour chiffrer un mail vers une identité.
+     * (Même contenu que GET_PARAMS, mais le serveur logge explicitement le destinataire.)
+     */
+    public SystemParameters getEncryptionInfo(String recipientEmail) throws IOException, ClassNotFoundException {
+        String normalized = recipientEmail == null ? "" : recipientEmail.toLowerCase().trim();
+        return requestSystemParameters("GET_ENCRYPTION_INFO " + normalized);
+    }
+
+    private SystemParameters requestSystemParameters(String command) throws IOException, ClassNotFoundException {
         try (Socket socket = new Socket(host, port);
              DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
              DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()))) {
 
-            // Envoyer la commande
-            dos.writeUTF("GET_PARAMS");
+            dos.writeUTF(command);
             dos.flush();
 
             int length = dis.readInt();
@@ -45,7 +57,6 @@ public class TrustAuthorityClient {
             byte[] data = new byte[length];
             dis.readFully(data);
 
-            //Deserialiser les params
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             ObjectInputStream ois = new ObjectInputStream(bais);
             return (SystemParameters) ois.readObject();

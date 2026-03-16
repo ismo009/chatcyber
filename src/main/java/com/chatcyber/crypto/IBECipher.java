@@ -18,56 +18,17 @@ import it.unisa.dia.gas.jpbc.Element;
 import it.unisa.dia.gas.jpbc.Pairing;
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;
 
-/**
- * Chiffreur/Déchiffreur IBE basé sur le schéma <b>FullIdent</b> de Boneh-Franklin
- * (IND-ID-CCA sécurisé dans le modèle des oracles aléatoires).
- *
- * Paramètres publics : PP = (P, Ppub, H1, H2, H3, H4) avec :
- *   H1 : {0,1}*       → G*       (hash identité → point de G1)
- *   H2 : GT           → {0,1}^n  (hash sortie pairing → n=32 octets)
- *   H3 : {0,1}^n × M → Zp*      (hash (σ,M)  → scalaire)
- *   H4 : {0,1}^n      → {0,1}^* (hash σ → flux de bits, extensible)
- *
- * Chiffrement (Encrypt) :
- *   QID = H1(id)
- *   σ ← {0,1}^n  aléatoire
- *   r = H3(σ, M)
- *   U = r · P  ∈ G1
- *   θ = e(QID, Ppub)^r  ∈ GT
- *   V = σ ⊕ H2(θ)              (32 octets)
- *   W = M ⊕ H4(σ, |M|)         (|M| octets)
- *   Sortie : C = (U, V, W)
- *
- * Déchiffrement (Decrypt) :
- *   θ' = e(dID, U) = e(QID, Ppub)^r
- *   σ' = V ⊕ H2(θ')
- *   M' = W ⊕ H4(σ', |W|)
- *   r' = H3(σ', M')
- *   Vérifier U == r'·P  → sinon retourner ⊥
- *   Sortie : M'
- *
- * Format du paquet chiffré :
- *   [4 octets : longueur de U][U][32 octets : V][W (longueur variable)]
- */
 public class IBECipher {
-
-    /** Taille de σ : n = 256 bits = 32 octets */
     private static final int SIGMA_LENGTH = 32;
 
     private final Pairing pairing;
-    private final Element generatorP;       // P ∈ G1
-    private final Element publicKeyPpub;    // Ppub = s·P ∈ G1
+    private final Element generatorP;
+    private final Element publicKeyPpub;
 
-    /**
-     * Initialise le chiffreur IBE avec les paramètres publics du système.
-     *
-     * @param params Paramètres publics reçus de l'Autorité de Confiance
-     */
+
     public IBECipher(SystemParameters params) {
-        // Recréer le pairing bilinéaire à partir des paramètres sauvegardés
         this.pairing = loadPairingFromString(params.getPairingParameters());
 
-        // Restaurer le générateur P et la clé publique Ppub
         this.generatorP = pairing.getG1().newElementFromBytes(params.getGeneratorP()).getImmutable();
         this.publicKeyPpub = pairing.getG1().newElementFromBytes(params.getPublicKeyPpub()).getImmutable();
     }
@@ -130,14 +91,12 @@ public class IBECipher {
             V[i] = (byte) (sigma[i] ^ h2bytes[i]);
         }
 
-        // W = M ⊕ H4(σ, |M|)  [|M| octets]
         byte[] h4bytes = h4(sigma, data.length);
         byte[] W = new byte[data.length];
         for (int i = 0; i < data.length; i++) {
             W[i] = (byte) (data[i] ^ h4bytes[i]);
         }
 
-        // Assemblage : [len(U)][U][V][W]
         byte[] uBytes = U.toBytes();
         ByteBuffer buffer = ByteBuffer.allocate(4 + uBytes.length + SIGMA_LENGTH + W.length);
         buffer.putInt(uBytes.length);
@@ -147,13 +106,8 @@ public class IBECipher {
         return buffer.array();
     }
 
-    /**
-     * Déchiffrement FullIdent.
-     *
-     * @param ciphertext      Données chiffrées au format [len(U)][U][V][W]
-     * @param privateKeyBytes Clé privée dID de l'utilisateur (sérialisée)
-     * @return Message en clair, ou lève une exception si le chiffré est invalide
-     */
+
+    //Données chiffrées au format [len(U)][U][V][W]
     public byte[] decrypt(byte[] ciphertext, byte[] privateKeyBytes) throws Exception {
         ByteBuffer buffer = ByteBuffer.wrap(ciphertext);
 
@@ -202,24 +156,13 @@ public class IBECipher {
         return M;
     }
 
-    // ─── Fonctions de hachage H2, H3, H4 ────────────────────────────────────
 
-    /**
-     * H2 : GT → {0,1}^n
-     * Hash de la sortie du pairing vers 32 octets.
-     * Séparateur de domaine : 0x02.
-     */
     private byte[] h2(Element theta) throws NoSuchAlgorithmException {
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
         sha256.update((byte) 0x02);
         return sha256.digest(theta.toBytes());
     }
 
-    /**
-     * H3 : {0,1}^n × {0,1}^* → Zp*
-     * Hash de (σ, M) vers un scalaire de Zr.
-     * Séparateur de domaine : 0x03.
-     */
     private Element h3(byte[] sigma, byte[] message) throws NoSuchAlgorithmException {
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
         sha256.update((byte) 0x03);
@@ -228,11 +171,6 @@ public class IBECipher {
         return pairing.getZr().newElementFromHash(hashBytes, 0, hashBytes.length).getImmutable();
     }
 
-    /**
-     * H4 : {0,1}^n → {0,1}^length
-     * Hash extensible de σ vers {@code length} octets, par SHA-256 en mode compteur.
-     * Séparateur de domaine : 0x04.
-     */
     private byte[] h4(byte[] sigma, int length) throws NoSuchAlgorithmException {
         byte[] output = new byte[length];
         int offset = 0;
@@ -251,12 +189,6 @@ public class IBECipher {
         return output;
     }
 
-    // ─── Utilitaire ──────────────────────────────────────────────────────────
-
-    /**
-     * Charge un Pairing depuis une string de paramètres (format properties JPBC).
-     * Écrit dans un fichier temporaire car JPBC requiert un chemin fichier.
-     */
     private static Pairing loadPairingFromString(String paramsString) {
         try {
             Path tempFile = Files.createTempFile("ibe_pairing_", ".properties");
