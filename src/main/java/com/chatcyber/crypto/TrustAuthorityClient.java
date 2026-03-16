@@ -45,7 +45,7 @@ public class TrustAuthorityClient {
             byte[] data = new byte[length];
             dis.readFully(data);
 
-            // Désérialiser les paramètres
+            //Deserialiser les params
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             ObjectInputStream ois = new ObjectInputStream(bais);
             return (SystemParameters) ois.readObject();

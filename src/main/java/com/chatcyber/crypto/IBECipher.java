@@ -72,13 +72,7 @@ public class IBECipher {
         this.publicKeyPpub = pairing.getG1().newElementFromBytes(params.getPublicKeyPpub()).getImmutable();
     }
 
-    /**
-     * Chiffre un fichier pour un destinataire identifié par son email.
-     *
-     * @param inputFile      Fichier source en clair
-     * @param outputFile     Fichier de sortie chiffré (.ibe)
-     * @param recipientEmail Email du destinataire (identité IBE)
-     */
+
     public void encryptFile(File inputFile, File outputFile, String recipientEmail) throws Exception {
         byte[] plaintext = Files.readAllBytes(inputFile.toPath());
         byte[] ciphertext = encrypt(plaintext, recipientEmail);
@@ -119,32 +113,17 @@ public class IBECipher {
         return outputFile;
     }
 
-    /**
-     * Chiffrement FullIdent (Boneh-Franklin IBE, IND-ID-CCA).
-     *
-     * @param data              Message en clair
-     * @param recipientIdentity Email du destinataire (identité IBE publique)
-     * @return Chiffré C = (U, V, W) sérialisé
-     */
     public byte[] encrypt(byte[] data, String recipientIdentity) throws Exception {
-        // QID = H1(id) : hash de l'identité vers un point de G1
         byte[] idHash = TrustAuthority.hashIdentity(recipientIdentity);
         Element qID = pairing.getG1().newElementFromHash(idHash, 0, idHash.length).getImmutable();
 
-        // σ ← {0,1}^n  aléatoire
         byte[] sigma = new byte[SIGMA_LENGTH];
         new SecureRandom().nextBytes(sigma);
 
-        // r = H3(σ, M) ∈ Zp*
         Element r = h3(sigma, data);
-
-        // U = r · P ∈ G1
         Element U = generatorP.mulZn(r).getImmutable();
-
-        // θ = e(QID, Ppub)^r ∈ GT
         Element theta = pairing.pairing(qID, publicKeyPpub).powZn(r).getImmutable();
 
-        // V = σ ⊕ H2(θ)  [32 octets]
         byte[] h2bytes = h2(theta);
         byte[] V = new byte[SIGMA_LENGTH];
         for (int i = 0; i < SIGMA_LENGTH; i++) {

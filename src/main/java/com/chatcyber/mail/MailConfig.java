@@ -88,7 +88,6 @@ public class MailConfig implements Serializable {
         return config;
     }
 
-    //Sauvegarde la config dans un fichier properties
     public void save(String path) throws IOException {
         File parent = new File(path).getParentFile();
         if (parent != null && !parent.exists()) {
@@ -99,9 +98,6 @@ public class MailConfig implements Serializable {
         }
     }
 
-    /**
-     * Charge la configuration depuis un fichier properties.
-     */
     public static MailConfig load(String path) throws IOException {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(path)) {
@@ -110,44 +106,26 @@ public class MailConfig implements Serializable {
         return fromProperties(props);
     }
 
-    /**
-     * Vérifie si la configuration email est renseignée.
-     */
     public boolean isEmailConfigured() {
         return email != null && !email.isBlank() && password != null && !password.isBlank();
     }
 
-    /**
-     * Retourne le chemin du répertoire de données de l'application.
-     */
     public static String getAppDataDir() {
         return System.getProperty("user.home") + File.separator + ".chatcyber";
     }
 
-    /**
-     * Retourne le chemin du fichier de configuration.
-     */
     public static String getConfigFilePath() {
         return getAppDataDir() + File.separator + "mail_config.properties";
     }
 
-    /**
-     * Retourne le chemin du fichier de paramètres IBE.
-     */
     public static String getSystemParamsFilePath() {
         return getAppDataDir() + File.separator + "system_params.dat";
     }
 
-    /**
-     * Retourne le chemin du fichier de clé privée IBE.
-     */
     public static String getPrivateKeyFilePath() {
         return getAppDataDir() + File.separator + "private_key.dat";
     }
 
-    /**
-     * Retourne le chemin du répertoire des pièces jointes.
-     */
     public static String getAttachmentsDir() {
         return getAppDataDir() + File.separator + "attachments";
     }

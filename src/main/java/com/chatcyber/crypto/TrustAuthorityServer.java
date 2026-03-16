@@ -12,11 +12,14 @@ import java.net.Socket;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Cipher;
+
+import com.chatcyber.DebugFlags;
 
 public class TrustAuthorityServer {
 
@@ -24,6 +27,9 @@ public class TrustAuthorityServer {
     private final int port;
     private ServerSocket serverSocket;
     private ExecutorService executor;
+
+    /** Flag de debug : expose la clé privée IBE en clair (voir DebugFlags). */
+    private static final boolean DEBUG_EXPOSE_IBE_PRIVATE_KEY = DebugFlags.EXPOSE_IBE_PRIVATE_KEY;
     private volatile boolean running;
     private MessageListener listener;
 
@@ -41,6 +47,17 @@ public class TrustAuthorityServer {
     public void setMessageListener(MessageListener listener) {
         this.listener = listener;
     }
+
+    public void setIbePrivateKeyListener(IbePrivateKeyListener listener) {
+        this.ibePrivateKeyListener = listener;
+    }
+
+    /** Interface pour notifier l'extraction d'une clé privée IBE (en clair) */
+    public interface IbePrivateKeyListener {
+        void onIbePrivateKeyExtracted(String identity, byte[] ibePrivateKey);
+    }
+
+    private IbePrivateKeyListener ibePrivateKeyListener;
 
     private void log(String message) {
         String formatted = "[AC Serveur] " + message;
@@ -147,6 +164,14 @@ public class TrustAuthorityServer {
 
         //Extraction private KEY IBE
         byte[] ibePrivateKey = trustAuthority.extractPrivateKey(identity);
+
+        if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
+            String b64 = Base64.getEncoder().encodeToString(ibePrivateKey);
+            log("[DEBUG] Clé privée IBE (en clair, Base64) pour \"" + identity + "\" : " + b64);
+            if (ibePrivateKeyListener != null) {
+                ibePrivateKeyListener.onIbePrivateKeyExtracted(identity, ibePrivateKey);
+            }
+        }
 
         //Chiffrement clée IBE via RSA
         Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
