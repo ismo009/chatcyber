@@ -46,14 +46,6 @@ public class IBECipher {
         }
     }
 
-    /**
-     * Déchiffre un fichier avec la clé privée IBE de l'utilisateur.
-     *
-     * @param inputFile       Fichier chiffré (.ibe)
-     * @param outputDir       Répertoire de sortie pour le fichier déchiffré
-     * @param privateKeyBytes Clé privée IBE de l'utilisateur (dID sérialisée)
-     * @return Le fichier déchiffré
-     */
     public File decryptFile(File inputFile, File outputDir, byte[] privateKeyBytes) throws Exception {
         String originalName;
         byte[] ciphertext;
