@@ -18,8 +18,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Cipher;
+import javax.mail.MessagingException;
 
 import com.chatcyber.DebugFlags;
+import com.chatcyber.mail.MailConfig;
+import com.chatcyber.mail.MailSender;
 
 public class TrustAuthorityServer {
 
@@ -27,6 +30,10 @@ public class TrustAuthorityServer {
     private final int port;
     private ServerSocket serverSocket;
     private ExecutorService executor;
+    
+    private VerificationCodeManager verificationCodeManager;
+    private MailSender mailSender;
+    private MailConfig mailConfig;
 
     /** Flag de debug : expose la clé privée IBE en clair (voir DebugFlags). */
     private static final boolean DEBUG_EXPOSE_IBE_PRIVATE_KEY = DebugFlags.EXPOSE_IBE_PRIVATE_KEY;
@@ -42,10 +49,18 @@ public class TrustAuthorityServer {
         this.trustAuthority = new TrustAuthority();
         this.port = port;
         this.executor = Executors.newCachedThreadPool();
+        this.verificationCodeManager = new VerificationCodeManager();
     }
 
     public void setMessageListener(MessageListener listener) {
         this.listener = listener;
+    }
+    
+    public void setMailConfig(MailConfig mailConfig) {
+        this.mailConfig = mailConfig;
+        if (mailConfig != null) {
+            this.mailSender = new MailSender(mailConfig);
+        }
     }
 
     public void setIbePrivateKeyListener(IbePrivateKeyListener listener) {
@@ -115,6 +130,18 @@ public class TrustAuthorityServer {
                     String identity = command.substring("EXTRACT_KEY ".length()).trim();
                     handleExtractKey(dis, dos, identity);
                     break;
+                case "VERIFY_KEY":
+                    String[] parts = command.substring("VERIFY_KEY ".length()).split(" ", 2);
+                    if (parts.length == 2) {
+                        String identityToVerify = parts[0].trim();
+                        String verificationCode = parts[1].trim();
+                        handleVerifyKey(dis, dos, identityToVerify, verificationCode);
+                    } else {
+                        log("Commande VERIFY_KEY malformée");
+                        dos.writeInt(-1);
+                        dos.flush();
+                    }
+                    break;
                 default:
                     log("Commande inconnue : " + command);
                     dos.writeInt(-1);
@@ -169,15 +196,74 @@ public class TrustAuthorityServer {
         log("Infos publiques envoyées pour : " + normalized + " (" + data.length + " octets).");
     }
 
-    //Extrait clée privée IBE, la chiffre avec RSA2048 et l'envoie
+    //Extrait clée privée IBE, génère un code de vérification et l'envoie par email
     private void handleExtractKey(DataInputStream dis, DataOutputStream dos, String identity)
             throws Exception {
-        //Lecture clée publique RSA Client
+        
+        String normalized = identity == null ? "" : identity.toLowerCase().trim();
+        
+        // Génération d'un code de vérification à 6 chiffres
+        String verificationCode = verificationCodeManager.generateCode(normalized);
+        log("Code de vérification généré pour : " + normalized + " => " + verificationCode);
+        
+        // Tentative d'envoi du code par email
+        if (mailSender != null) {
+            try {
+                String subject = "ChatCyber - Code de vérification";
+                String body = "Bonjour,\n\n"
+                        + "Pour récupérer votre clé privée IBE, veuillez entrer le code de vérification suivant :\n\n"
+                        + "*** " + verificationCode + " ***\n\n"
+                        + "Ce code est valide pendant 10 minutes.\n\n"
+                        + "Si vous n'avez pas demandé ce code, veuillez ignorer cet email.\n\n"
+                        + "Cordialement,\n"
+                        + "ChatCyber";
+                
+                mailSender.sendEmail(normalized, subject, body);
+                log("Code de vérification envoyé par email à : " + normalized);
+                
+                // Répondre avec le code de statut 1 (vérification requise)
+                dos.writeInt(1);
+                dos.flush();
+                
+            } catch (MessagingException e) {
+                log("Erreur lors de l'envoi du code de vérification par email : " + e.getMessage());
+                log("Détail : " + e.getCause());
+                // Même en cas d'erreur, on ne divulgue pas la clé sans vérification
+                dos.writeInt(-2);
+                dos.flush();
+            }
+        } else {
+            log("Attention : Configuration email non disponible pour l'envoi du code de vérification");
+            // Sans email, on ne peut pas envoyer le code, donc on rejette la requête
+            dos.writeInt(-2);
+            dos.flush();
+        }
+    }
+    
+    //Vérifie le code et envoie la clé privée IBE si correct
+    private void handleVerifyKey(DataInputStream dis, DataOutputStream dos, String identity, String providedCode)
+            throws Exception {
+        
+        String normalized = identity == null ? "" : identity.toLowerCase().trim();
+        
+        log("Vérification du code pour : " + normalized);
+        
+        // Vérifier le code
+        if (!verificationCodeManager.verifyCode(normalized, providedCode)) {
+            log("Code de vérification invalide ou expiré pour : " + normalized);
+            dos.writeInt(-1);
+            dos.flush();
+            return;
+        }
+        
+        log("Code de vérification accepté pour : " + normalized);
+        
+        // Lecture clée publique RSA Client
         int rsaPubLen = dis.readInt();
         if (rsaPubLen <= 0 || rsaPubLen > 8192) {
             dos.writeInt(-1);
             dos.flush();
-            log("Clé publique RSA invalide pour : " + identity);
+            log("Clé publique RSA invalide pour : " + normalized);
             return;
         }
         byte[] rsaPubBytes = new byte[rsaPubLen];
@@ -187,13 +273,13 @@ public class TrustAuthorityServer {
                 .generatePublic(new X509EncodedKeySpec(rsaPubBytes));
 
         //Extraction private KEY IBE
-        byte[] ibePrivateKey = trustAuthority.extractPrivateKey(identity);
+        byte[] ibePrivateKey = trustAuthority.extractPrivateKey(normalized);
 
         if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
             String b64 = Base64.getEncoder().encodeToString(ibePrivateKey);
-            log("[DEBUG] Clé privée IBE (en clair, Base64) pour \"" + identity + "\" : " + b64);
+            log("[DEBUG] Clé privée IBE (en clair, Base64) pour \"" + normalized + "\" : " + b64);
             if (ibePrivateKeyListener != null) {
-                ibePrivateKeyListener.onIbePrivateKeyExtracted(identity, ibePrivateKey);
+                ibePrivateKeyListener.onIbePrivateKeyExtracted(normalized, ibePrivateKey);
             }
         }
 
@@ -206,7 +292,7 @@ public class TrustAuthorityServer {
         dos.write(encryptedKey);
         dos.flush();
 
-        log("Clé privée IBE chiffrée (RSA-OAEP) envoyée pour : " + identity + " (" + encryptedKey.length + " octets).");
+        log("Clé privée IBE chiffrée (RSA-OAEP) envoyée pour : " + normalized + " (" + encryptedKey.length + " octets).");
     }
 
     private String parseCommand(String command) {
@@ -214,6 +300,7 @@ public class TrustAuthorityServer {
         if (command.equals("GET_PARAMS")) return "GET_PARAMS";
         if (command.startsWith("GET_ENCRYPTION_INFO ")) return "GET_ENCRYPTION_INFO";
         if (command.startsWith("EXTRACT_KEY ")) return "EXTRACT_KEY";
+        if (command.startsWith("VERIFY_KEY ")) return "VERIFY_KEY";
         return command;
     }
 
@@ -231,6 +318,9 @@ public class TrustAuthorityServer {
                 executor.awaitTermination(3, TimeUnit.SECONDS);
             } catch (InterruptedException ignored) {
             }
+        }
+        if (verificationCodeManager != null) {
+            verificationCodeManager.shutdown();
         }
         log("Serveur arrêté.");
     }

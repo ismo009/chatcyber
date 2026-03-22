@@ -6,6 +6,8 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -20,6 +22,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -27,6 +30,7 @@ import javax.swing.SwingUtilities;
 
 import com.chatcyber.DebugFlags;
 import com.chatcyber.crypto.TrustAuthorityServer;
+import com.chatcyber.mail.MailConfig;
 
 /**
  * Fenetre de gestion de l'Autorite de Confiance (Trust Authority).
@@ -49,12 +53,15 @@ public class TrustAuthorityFrame extends JFrame {
 
     private final int port;
     private TrustAuthorityServer server;
+    private MailConfig mailConfig;
 
     private JTextArea taLog;
     private JTextArea taIbePrivateKeyPlaintext;
     private JButton btnStart;
     private JButton btnStop;
+    private JButton btnConfigEmail;
     private JLabel lblStatus;
+    private JLabel lblEmailStatus;
     private JTextField tfPort;
     private JLabel lblConnections;
     private JLabel lblIbePrivateKeyIdentity;
@@ -153,6 +160,18 @@ public class TrustAuthorityFrame extends JFrame {
         btnStop.setEnabled(false);
         btnStop.addActionListener(e -> stopServer());
         controlBar.add(btnStop);
+
+        controlBar.add(Box.createHorizontalStrut(20));
+
+        btnConfigEmail = createDarkButton("Config Email", BLUE_ACCENT);
+        btnConfigEmail.addActionListener(e -> showEmailConfigDialog());
+        controlBar.add(btnConfigEmail);
+
+        lblEmailStatus = new JLabel("E-mail : ✗ Non configuré");
+        lblEmailStatus.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblEmailStatus.setForeground(RED_BRIGHT);
+        controlBar.add(Box.createHorizontalStrut(20));
+        controlBar.add(lblEmailStatus);
 
         controlBar.add(Box.createHorizontalStrut(20));
 
@@ -293,6 +312,7 @@ public class TrustAuthorityFrame extends JFrame {
         }
 
         btnStart.setEnabled(false);
+        btnConfigEmail.setEnabled(false);
         tfPort.setEnabled(false);
         connectionCount = 0;
 
@@ -308,6 +328,12 @@ public class TrustAuthorityFrame extends JFrame {
                         lblConnections.setText("Connexions : " + connectionCount);
                     }
                 }));
+
+                // Configurer le serveur avec les paramètres email
+                if (mailConfig != null) {
+                    server.setMailConfig(mailConfig);
+                    appendLog(timestamp() + " Configuration email chargée : " + mailConfig.getEmail() + "\n");
+                }
 
                 if (DEBUG_EXPOSE_IBE_PRIVATE_KEY) {
                     server.setIbePrivateKeyListener((identity, ibePrivateKey) -> SwingUtilities.invokeLater(() -> {
@@ -330,6 +356,7 @@ public class TrustAuthorityFrame extends JFrame {
                 SwingUtilities.invokeLater(() -> {
                     appendLog(timestamp() + " ERREUR : " + ex.getMessage() + "\n");
                     btnStart.setEnabled(true);
+                    btnConfigEmail.setEnabled(true);
                     tfPort.setEnabled(true);
                     lblStatus.setText("  Erreur  ");
                     lblStatus.setForeground(RED_BRIGHT);
@@ -356,6 +383,7 @@ public class TrustAuthorityFrame extends JFrame {
 
         btnStart.setEnabled(true);
         btnStop.setEnabled(false);
+        btnConfigEmail.setEnabled(true);
         tfPort.setEnabled(true);
         lblStatus.setText("  Arrete  ");
         lblStatus.setForeground(DARK_MUTED);
@@ -364,6 +392,95 @@ public class TrustAuthorityFrame extends JFrame {
                 BorderFactory.createLineBorder(DARK_BORDER, 1),
                 BorderFactory.createEmptyBorder(4, 12, 4, 12)
         ));
+    }
+
+    private void showEmailConfigDialog() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(DARK_BG);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        if (mailConfig == null) {
+            mailConfig = new MailConfig();
+        }
+        
+        // Email
+        gbc.gridx = 0; gbc.gridy = 0;
+        JLabel lblEmail = new JLabel("E-mail :");
+        lblEmail.setForeground(DARK_TEXT);
+        panel.add(lblEmail, gbc);
+        
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        JTextField tfEmail = new JTextField(mailConfig.getEmail(), 25);
+        tfEmail.setBackground(DARK_CARD);
+        tfEmail.setForeground(DARK_TEXT);
+        tfEmail.setCaretColor(DARK_TEXT);
+        panel.add(tfEmail, gbc);
+        
+        // Mot de passe
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
+        JLabel lblPassword = new JLabel("Mot de passe :");
+        lblPassword.setForeground(DARK_TEXT);
+        panel.add(lblPassword, gbc);
+        
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        JPasswordField tfPassword = new JPasswordField(mailConfig.getPassword(), 25);
+        tfPassword.setBackground(DARK_CARD);
+        tfPassword.setForeground(DARK_TEXT);
+        tfPassword.setCaretColor(DARK_TEXT);
+        panel.add(tfPassword, gbc);
+        
+        // SMTP Host
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
+        JLabel lblSmtpHost = new JLabel("Serveur SMTP :");
+        lblSmtpHost.setForeground(DARK_TEXT);
+        panel.add(lblSmtpHost, gbc);
+        
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        JTextField tfSmtpHost = new JTextField(mailConfig.getSmtpHost(), 25);
+        tfSmtpHost.setBackground(DARK_CARD);
+        tfSmtpHost.setForeground(DARK_TEXT);
+        tfSmtpHost.setCaretColor(DARK_TEXT);
+        panel.add(tfSmtpHost, gbc);
+        
+        // SMTP Port
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
+        JLabel lblSmtpPort = new JLabel("Port SMTP :");
+        lblSmtpPort.setForeground(DARK_TEXT);
+        panel.add(lblSmtpPort, gbc);
+        
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        JTextField tfSmtpPort = new JTextField(String.valueOf(mailConfig.getSmtpPort()), 25);
+        tfSmtpPort.setBackground(DARK_CARD);
+        tfSmtpPort.setForeground(DARK_TEXT);
+        tfSmtpPort.setCaretColor(DARK_TEXT);
+        panel.add(tfSmtpPort, gbc);
+        
+        int result = JOptionPane.showConfirmDialog(
+            this,
+            panel,
+            "Configuration E-mail",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE
+        );
+        
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                mailConfig.setEmail(tfEmail.getText().trim());
+                mailConfig.setPassword(new String(tfPassword.getPassword()));
+                mailConfig.setSmtpHost(tfSmtpHost.getText().trim());
+                mailConfig.setSmtpPort(Integer.parseInt(tfSmtpPort.getText().trim()));
+                
+                lblEmailStatus.setText("E-mail : ✓ " + mailConfig.getEmail());
+                lblEmailStatus.setForeground(GREEN_BRIGHT);
+                
+                appendLog(timestamp() + " Configuration email mise à jour : " + mailConfig.getEmail() + "\n");
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Port SMTP invalide.", "Erreur", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private String timestamp() {
