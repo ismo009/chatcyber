@@ -56,7 +56,6 @@ gantt
     section Robin
     Recherche outils et technologies           :done, r1, 2026-03-04, 4d
     Documentation du projet                    :done, r2, after r1, 4d
-    Preparation soutenance et planning         :active, r3, after r2, 5d
     Redaction du rapport                       :done, r4, after r3, 2026-03-24
     Soutenance - Livraison                     :milestone, r5, 2026-03-24, 0d
 
