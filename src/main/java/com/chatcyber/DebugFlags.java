@@ -5,5 +5,5 @@ public final class DebugFlags {
 
     private DebugFlags() {}
 
-    public static final boolean EXPOSE_IBE_PRIVATE_KEY = false; //Afficher clée privée en clair dans logs + UI
+    public static final boolean EXPOSE_IBE_PRIVATE_KEY = false; //Afficher clee privée en clair dans logs + UI - Pour devug, à ne pas activer pour rendu final
 }
