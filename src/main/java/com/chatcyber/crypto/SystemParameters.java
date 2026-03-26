@@ -1,26 +1,17 @@
 package com.chatcyber.crypto;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
-/**
- * Paramètres publics du système IBE (Identity-Based Encryption).
- * Générés par l'Autorité de Confiance et partagés avec tous les clients.
- *
- * Contient :
- * - Les paramètres de la courbe elliptique (Type A)
- * - Le générateur P ∈ G1
- * - La clé publique maîtresse Ppub = s·P ∈ G1
- */
 public class SystemParameters implements Serializable {
     private static final long serialVersionUID = 1L;
-
-    /** Paramètres de la courbe bilinéaire au format properties (Type A) */
     private final String pairingParameters;
-
-    /** Générateur P ∈ G1 sérialisé */
     private final byte[] generatorP;
-
-    /** Clé publique maîtresse Ppub = s·P ∈ G1 sérialisée */
     private final byte[] publicKeyPpub;
 
     public SystemParameters(String pairingParameters, byte[] generatorP, byte[] publicKeyPpub) {
